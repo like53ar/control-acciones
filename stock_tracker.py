@@ -1,8 +1,6 @@
 import customtkinter as ctk
 import pandas as pd
 import yfinance as yf
-import matplotlib.pyplot as plt
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import os
 import threading
 from tkinter import messagebox
@@ -271,11 +269,15 @@ class StockTrackerApp(ctk.CTk):
         self.card_current_value = self.create_summary_card(self.summary_frame, "Valor Actual", "$0.00", 1)
         self.card_profit_loss = self.create_summary_card(self.summary_frame, "G/P Total", "$0.00 (0.00%)", 2)
 
-        # Chart Area
-        self.chart_frame = ctk.CTkFrame(self.main_frame)
-        self.chart_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
-        self.chart_frame.grid_columnconfigure(0, weight=1)
-        self.chart_frame.grid_rowconfigure(0, weight=1)
+        # Aggregated Summary Area (Replaces Chart)
+        self.agg_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Resumen por Acción", height=150)
+        self.agg_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        self.agg_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+
+        # Headers for Aggregated Table
+        agg_headers = ["Acción", "Cant. Total", "P. Prom. Compra", "Total General"]
+        for i, header in enumerate(agg_headers):
+            ctk.CTkLabel(self.agg_frame, text=header, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=5)
 
         # Table Area (Scrollable Frame mimicking a table)
         self.table_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Tus Posiciones")
@@ -485,6 +487,9 @@ class StockTrackerApp(ctk.CTk):
             del_btn = ctk.CTkButton(self.table_frame, text="X", width=30, fg_color="red", hover_color="darkred",
                                     command=lambda i=index: self.delete_row(i))
             del_btn.grid(row=r, column=8, padx=5, pady=2)
+        
+        # Update Summary Table
+        self.update_summary_table()
     
     def on_row_hover(self, index, is_hover):
         color = "#333333" if is_hover else "transparent"
@@ -495,35 +500,32 @@ class StockTrackerApp(ctk.CTk):
                 except:
                     pass
 
-        # Update Chart
-        self.update_chart()
-
-    def update_chart(self):
-        # Clear previous chart
-        for widget in self.chart_frame.winfo_children():
-            widget.destroy()
+    def update_summary_table(self):
+        # Clear existing rows
+        for widget in self.agg_frame.winfo_children():
+            if int(widget.grid_info()["row"]) > 0: # Skip header
+                widget.destroy()
 
         if self.portfolio.empty:
             return
 
-        # Prepare Data
-        fig, ax = plt.subplots(figsize=(6, 1.2), dpi=100)
-        fig.patch.set_facecolor('#2b2b2b') # Match dark theme background
-        ax.set_facecolor('#2b2b2b')
-        
-        colors = ['g' if x >= 0 else 'r' for x in self.portfolio["ProfitLoss"]]
-        bars = ax.bar(self.portfolio["Symbol"], self.portfolio["ProfitLoss"], color=colors)
-        
-        ax.tick_params(axis='x', colors='white')
-        ax.tick_params(axis='y', colors='white')
-        ax.set_title("Ganancia/Pérdida por Activo", color='white')
-        
-        # Embed in Tkinter
-        plt.tight_layout()
-        canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(side="top", fill="both", expand=True)
-        plt.close(fig)
+        # Aggregation Logic
+        # Group by Symbol
+        grouped = self.portfolio.groupby('Symbol').apply(
+            lambda x: pd.Series({
+                'TotalQuantity': x['Quantity'].sum(),
+                'WeightedAvgPrice': (x['Quantity'] * x['BuyPrice']).sum() / x['Quantity'].sum() if x['Quantity'].sum() > 0 else 0,
+                'TotalValue': x['Value'].sum()
+            })
+        ).reset_index()
+
+        # Render rows
+        for index, row in grouped.iterrows():
+            r = index + 1
+            ctk.CTkLabel(self.agg_frame, text=row['Symbol']).grid(row=r, column=0, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"{row['TotalQuantity']:.2f}").grid(row=r, column=1, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"${row['WeightedAvgPrice']:.2f}").grid(row=r, column=2, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"${row['TotalValue']:.2f}").grid(row=r, column=3, padx=5, pady=2)
 
 if __name__ == "__main__":
     app = StockTrackerApp()
