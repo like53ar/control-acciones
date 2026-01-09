@@ -122,7 +122,7 @@ class StockTrackerApp(ctk.CTk):
     def create_sidebar(self):
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(11, weight=1)
+        self.sidebar_frame.grid_rowconfigure(12, weight=1)
 
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Portafolio", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
@@ -163,6 +163,9 @@ class StockTrackerApp(ctk.CTk):
 
         self.update_button = ctk.CTkButton(self.sidebar_frame, text="Actualizar Datos", command=self.start_market_update, fg_color="green")
         self.update_button.grid(row=10, column=0, padx=20, pady=(10, 20))
+
+        self.exchange_rate_label = ctk.CTkLabel(self.sidebar_frame, text="USD/ARS: ---", font=ctk.CTkFont(size=12, weight="bold"))
+        self.exchange_rate_label.grid(row=11, column=0, padx=20, pady=(0, 20))
 
         # Bindings for auto-lookup
         self.symbol_entry.bind("<FocusOut>", self.on_symbol_focus_out)
@@ -272,10 +275,10 @@ class StockTrackerApp(ctk.CTk):
         # Aggregated Summary Area (Replaces Chart)
         self.agg_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Resumen por Acción", height=150)
         self.agg_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
-        self.agg_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
+        self.agg_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
 
         # Headers for Aggregated Table
-        agg_headers = ["Acción", "Cant. Total", "P. Prom. Compra", "Total General"]
+        agg_headers = ["Acción", "Cant. Total", "P. Prom. Compra", "Precio Actual", "Total General"]
         for i, header in enumerate(agg_headers):
             ctk.CTkLabel(self.agg_frame, text=header, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=5)
 
@@ -371,6 +374,7 @@ class StockTrackerApp(ctk.CTk):
             return
         
         self.update_button.configure(state="disabled", text="Actualizando...")
+        self.exchange_rate_label.configure(text="USD/ARS: Calculando...")
         thread = threading.Thread(target=self.fetch_market_data)
         thread.start()
 
@@ -397,6 +401,31 @@ class StockTrackerApp(ctk.CTk):
                     print(f"Failed to fetch {symbol}: {e}")
                     current_prices[symbol] = 0
 
+            # Fetch USD/ARS exchange rate
+            self.ars_rate = 0
+            self.rate_source = ""
+            
+            # Try 1: yfinance
+            try:
+                ars_ticker = yf.Ticker("ARS=X")
+                ars_hist = ars_ticker.history(period="1d")
+                if not ars_hist.empty:
+                    self.ars_rate = ars_hist["Close"].iloc[-1]
+                    self.rate_source = "Yahoo"
+            except:
+                pass
+
+            # Try 2: DolarAPI (Blue) if Yahoo failed
+            if self.ars_rate == 0:
+                try:
+                    r = requests.get("https://dolarapi.com/v1/dolares/blue", timeout=5)
+                    data = r.json()
+                    self.ars_rate = data['venta']
+                    self.rate_source = "Blue"
+                except Exception as e:
+                    print(f"Failed to fetch from DolarAPI: {e}")
+                    self.ars_rate = 0
+
             # Update dataframe safely
             self.portfolio["CurrentPrice"] = self.portfolio["Symbol"].map(current_prices).fillna(0)
             
@@ -410,6 +439,11 @@ class StockTrackerApp(ctk.CTk):
 
     def update_ui_after_fetch(self):
         self.save_portfolio() # Save the fetched prices too if we want, or just re-render
+        if hasattr(self, 'ars_rate') and self.ars_rate > 0:
+            source_text = f" ({self.rate_source})" if self.rate_source else ""
+            self.exchange_rate_label.configure(text=f"USD/ARS{source_text}: ${self.ars_rate:,.2f}")
+        else:
+            self.exchange_rate_label.configure(text="USD/ARS: No disponible")
         self.update_ui()
 
     def update_ui(self):
@@ -515,6 +549,7 @@ class StockTrackerApp(ctk.CTk):
             lambda x: pd.Series({
                 'TotalQuantity': x['Quantity'].sum(),
                 'WeightedAvgPrice': (x['Quantity'] * x['BuyPrice']).sum() / x['Quantity'].sum() if x['Quantity'].sum() > 0 else 0,
+                'CurrentPrice': x['CurrentPrice'].iloc[0] if not x['CurrentPrice'].empty else 0,
                 'TotalValue': x['Value'].sum()
             })
         ).reset_index()
@@ -525,7 +560,8 @@ class StockTrackerApp(ctk.CTk):
             ctk.CTkLabel(self.agg_frame, text=row['Symbol']).grid(row=r, column=0, padx=5, pady=2)
             ctk.CTkLabel(self.agg_frame, text=f"{row['TotalQuantity']:.2f}").grid(row=r, column=1, padx=5, pady=2)
             ctk.CTkLabel(self.agg_frame, text=f"${row['WeightedAvgPrice']:.2f}").grid(row=r, column=2, padx=5, pady=2)
-            ctk.CTkLabel(self.agg_frame, text=f"${row['TotalValue']:.2f}").grid(row=r, column=3, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"${row['CurrentPrice']:.2f}").grid(row=r, column=3, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"${row['TotalValue']:.2f}").grid(row=r, column=4, padx=5, pady=2)
 
 if __name__ == "__main__":
     app = StockTrackerApp()
