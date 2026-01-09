@@ -1,0 +1,6 @@
+customtkinter
+yfinance
+pandas
+matplotlib
+pillow
+requests
