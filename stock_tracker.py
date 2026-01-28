@@ -5,7 +5,214 @@ import os
 import threading
 from tkinter import messagebox
 import requests
+import sqlite3
 from datetime import datetime
+import shutil
+
+DB_FILE = "portfolio.db"
+CSV_FILE = "cartera.csv"
+
+class PortfolioDB:
+    @staticmethod
+    def init_db():
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # Transactions table (History)
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS transactions (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                date TEXT,
+                symbol TEXT,
+                company TEXT,
+                action TEXT, -- 'BUY', 'SELL'
+                quantity REAL,
+                price REAL
+            )
+        ''')
+        
+        # Portfolio table (Current State - Optimized for read)
+        # Note: We can either derive this from transactions or keep it sync.
+        # For simplicity and performance, we'll keep it sync.
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS portfolio (
+                symbol TEXT PRIMARY KEY,
+                company TEXT,
+                quantity REAL,
+                avg_price REAL,
+                current_price REAL DEFAULT 0
+            )
+        ''')
+        
+        # Check if column exists (migration for existing DBs)
+        try:
+            cursor.execute('ALTER TABLE portfolio ADD COLUMN current_price REAL DEFAULT 0')
+        except:
+            pass
+        
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def migrate_csv_if_needed():
+        if os.path.exists(CSV_FILE) and not os.path.exists(DB_FILE):
+            print("Migrating CSV to DB...")
+            PortfolioDB.init_db()
+            try:
+                df = pd.read_csv(CSV_FILE)
+                for _, row in df.iterrows():
+                    PortfolioDB.add_transaction(
+                        row['Symbol'], 
+                        row['Company'], 
+                        'BUY', 
+                        row['Quantity'], 
+                        row['BuyPrice'], 
+                        row.get('BuyDate', datetime.now().strftime("%d/%m/%Y"))
+                    )
+                # Backup CSV
+                shutil.move(CSV_FILE, CSV_FILE + ".bak")
+                print("Migration complete. CSV backed up.")
+            except Exception as e:
+                print(f"Migration failed: {e}")
+        elif not os.path.exists(DB_FILE):
+             PortfolioDB.init_db()
+
+    @staticmethod
+    def add_transaction(symbol, company, action, quantity, price, date):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        # 1. Log transaction
+        cursor.execute('''
+            INSERT INTO transactions (date, symbol, company, action, quantity, price)
+            VALUES (?, ?, ?, ?, ?, ?)
+        ''', (date, symbol, company, action, quantity, price))
+        
+        # 2. Update Portfolio State
+        cursor.execute('SELECT quantity, avg_price FROM portfolio WHERE symbol = ?', (symbol,))
+        row = cursor.fetchone()
+        
+        if row:
+            current_qty, current_avg = row
+            if action == 'BUY':
+                new_qty = current_qty + quantity
+                # Weighted Average
+                new_avg = ((current_qty * current_avg) + (quantity * price)) / new_qty
+                cursor.execute('UPDATE portfolio SET quantity = ?, avg_price = ? WHERE symbol = ?', 
+                               (new_qty, new_avg, symbol))
+            elif action == 'SELL':
+                new_qty = max(0, current_qty - quantity)
+                if new_qty == 0:
+                    cursor.execute('DELETE FROM portfolio WHERE symbol = ?', (symbol,))
+                else:
+                    # Selling doesn't change average cost basis usually
+                    cursor.execute('UPDATE portfolio SET quantity = ? WHERE symbol = ?', 
+                                   (new_qty, symbol))
+        else:
+            if action == 'BUY':
+                cursor.execute('INSERT INTO portfolio (symbol, company, quantity, avg_price) VALUES (?, ?, ?, ?)',
+                               (symbol, company, quantity, price))
+        
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def get_portfolio_df():
+        conn = sqlite3.connect(DB_FILE)
+        # We read 'current_price' as CurrentPrice
+        df = pd.read_sql_query("SELECT symbol as Symbol, company as Company, quantity as Quantity, avg_price as BuyPrice, current_price as CurrentPrice FROM portfolio", conn)
+        conn.close()
+        return df
+
+    @staticmethod
+    def update_current_price(symbol, price):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute('UPDATE portfolio SET current_price = ? WHERE symbol = ?', (price, symbol))
+        conn.commit()
+        conn.close()
+    
+    @staticmethod
+    def get_symbol_quantity(symbol):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute('SELECT quantity FROM portfolio WHERE symbol = ?', (symbol,))
+        row = cursor.fetchone()
+        conn.close()
+        return row[0] if row else 0
+
+    @staticmethod
+    def delete_symbol(symbol):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute('DELETE FROM portfolio WHERE symbol = ?', (symbol,))
+        # Also maybe delete transactions? Or keep history?
+        # For now, let's keep history but remove from active portfolio.
+        conn.commit()
+        conn.close()
+
+    @staticmethod
+    def update_symbol(symbol, quantity, price):
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        cursor.execute('UPDATE portfolio SET quantity = ?, avg_price = ? WHERE symbol = ?', 
+                       (quantity, price, symbol))
+        conn.commit()
+        conn.close()
+
+class SellDialog(ctk.CTkToplevel):
+    def __init__(self, parent, symbol, current_qty, current_price, callback):
+        super().__init__(parent)
+        self.title(f"Vender {symbol}")
+        self.geometry("350x450")
+        self.callback = callback
+        self.max_qty = current_qty
+        
+        ctk.CTkLabel(self, text=f"Vender {symbol}", font=ctk.CTkFont(size=18, weight="bold")).pack(pady=20)
+        
+        ctk.CTkLabel(self, text=f"Disponible: {current_qty:.2f}", text_color="gray").pack()
+        
+        self.qty_entry = ctk.CTkEntry(self, placeholder_text="Cantidad a Vender")
+        self.qty_entry.pack(pady=10)
+        self.qty_entry.insert(0, str(current_qty))
+        
+        self.price_entry = ctk.CTkEntry(self, placeholder_text="Precio de Venta")
+        self.price_entry.pack(pady=10)
+        self.price_entry.insert(0, str(current_price))
+        
+        self.date_entry = ctk.CTkEntry(self, placeholder_text="Fecha (DD/MM/AAAA)")
+        self.date_entry.pack(pady=10)
+        self.date_entry.insert(0, datetime.now().strftime("%d/%m/%Y"))
+        
+        # Quick % Buttons
+        self.percent_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.percent_frame.pack(pady=10)
+        ctk.CTkButton(self.percent_frame, text="25%", width=60, command=lambda: self.set_qty(0.25)).pack(side="left", padx=5)
+        ctk.CTkButton(self.percent_frame, text="50%", width=60, command=lambda: self.set_qty(0.50)).pack(side="left", padx=5)
+        ctk.CTkButton(self.percent_frame, text="100%", width=60, command=lambda: self.set_qty(1.0)).pack(side="left", padx=5)
+
+        ctk.CTkButton(self, text="Confirmar Venta", command=self.on_sell, fg_color="red", hover_color="darkred").pack(pady=20)
+
+    def set_qty(self, percent):
+        qty = self.max_qty * percent
+        self.qty_entry.delete(0, 'end')
+        self.qty_entry.insert(0, f"{qty:.2f}")
+
+    def on_sell(self):
+        try:
+            qty = float(self.qty_entry.get())
+            price = float(self.price_entry.get())
+            date = self.date_entry.get().strip()
+            
+            if qty <= 0 or qty > self.max_qty:
+                messagebox.showerror("Error", f"Cantidad inválida. Máximo: {self.max_qty}")
+                return
+                
+            if messagebox.askyesno("Confirmar Venta", f"¿Vender {qty} de {self.title}? \nEsto es irreversible."):
+                self.callback(qty, price, date)
+                self.destroy()
+        except ValueError:
+            messagebox.showerror("Error", "Ingrese valores numéricos válidos")
 
 class SuggestionDialog(ctk.CTkToplevel):
     def __init__(self, parent, suggestions, callback):
@@ -91,6 +298,7 @@ class StockTrackerApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # Data
+        PortfolioDB.migrate_csv_if_needed()
         self.portfolio = self.load_portfolio()
         
         # UI Components
@@ -106,17 +314,11 @@ class StockTrackerApp(ctk.CTk):
         self.update_ui()
 
     def load_portfolio(self):
-        if os.path.exists(DATA_FILE):
-            try:
-                return pd.read_csv(DATA_FILE)
-            except Exception as e:
-                print(f"Error loading data: {e}")
-                return pd.DataFrame(columns=["Symbol", "Company", "Quantity", "BuyPrice", "BuyDate"])
-        else:
-            return pd.DataFrame(columns=["Symbol", "Company", "Quantity", "BuyPrice", "BuyDate"])
+        return PortfolioDB.get_portfolio_df()
 
     def save_portfolio(self):
-        self.portfolio.to_csv(DATA_FILE, index=False)
+        # DB handles persistence, just refresh UI
+        self.portfolio = self.load_portfolio()
         self.update_ui()
 
     def create_sidebar(self):
@@ -288,7 +490,7 @@ class StockTrackerApp(ctk.CTk):
         self.table_frame.grid_columnconfigure((0, 1, 2, 3, 4, 5, 6, 7, 8), weight=1)
 
         # Table Headers
-        headers = ["Símbolo", "Empresa", "Cant.", "P. Compra", "F. Compra", "P. Actual", "Valor", "G/P", "Acciones"]
+        headers = ["Símbolo", "Empresa", "Cant.", "P. Compra", "P. Actual", "Valor", "G/P", "Vender", "Eliminar"]
         for i, header in enumerate(headers):
             ctk.CTkLabel(self.table_frame, text=header, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=5)
 
@@ -331,14 +533,12 @@ class StockTrackerApp(ctk.CTk):
              except:
                  company = symbol
         
-        new_row = pd.DataFrame([[symbol, company, quantity, price, buy_date]], columns=["Symbol", "Company", "Quantity", "BuyPrice", "BuyDate"])
-        
-        if self.portfolio.empty:
-            self.portfolio = new_row
-        else:
-            self.portfolio = pd.concat([self.portfolio, new_row], ignore_index=True)
+        PortfolioDB.add_transaction(symbol, company, 'BUY', quantity, price, buy_date)
             
         self.save_portfolio()
+
+        # Auto-fetch current market price in background
+        threading.Thread(target=self.fetch_single_price_update, args=(symbol,), daemon=True).start()
         
         # Clear inputs
         self.symbol_entry.delete(0, 'end')
@@ -353,7 +553,8 @@ class StockTrackerApp(ctk.CTk):
 
     def delete_row(self, index):
         if messagebox.askyesno("Eliminar", "¿Seguro que deseas eliminar esta posición?"):
-            self.portfolio = self.portfolio.drop(index).reset_index(drop=True)
+            symbol = self.portfolio.iloc[index]['Symbol']
+            PortfolioDB.delete_symbol(symbol)
             self.save_portfolio()
             
     def edit_position(self, index):
@@ -361,9 +562,21 @@ class StockTrackerApp(ctk.CTk):
         EditPositionDialog(self, row, lambda q, p, d: self.save_edited_position(index, q, p, d))
         
     def save_edited_position(self, index, quantity, price, date):
-        self.portfolio.at[index, "Quantity"] = quantity
-        self.portfolio.at[index, "BuyPrice"] = price
-        self.portfolio.at[index, "BuyDate"] = date
+        # Note: Editing ignores date for now in portfolio view (since it's avg), 
+        # but we could update if we wanted. For now just update qty/price.
+        symbol = self.portfolio.iloc[index]['Symbol']
+        PortfolioDB.update_symbol(symbol, quantity, price)
+        self.save_portfolio()
+
+    def open_sell_dialog(self, index):
+        row = self.portfolio.iloc[index]
+        # Current price fallback
+        price = row['CurrentPrice'] if row['CurrentPrice'] > 0 else row['BuyPrice']
+        SellDialog(self, row['Symbol'], row['Quantity'], price, 
+                   lambda q, p, d: self.save_sell(row['Symbol'], row['Company'], q, p, d))
+
+    def save_sell(self, symbol, company, quantity, price, date):
+        PortfolioDB.add_transaction(symbol, company, 'SELL', quantity, price, date)
         self.save_portfolio()
 
     def remove_position(self):
@@ -429,6 +642,10 @@ class StockTrackerApp(ctk.CTk):
             # Update dataframe safely
             self.portfolio["CurrentPrice"] = self.portfolio["Symbol"].map(current_prices).fillna(0)
             
+            # Update DB with new prices
+            for symbol, price in current_prices.items():
+                PortfolioDB.update_current_price(symbol, price)
+
             # Schedule UI update on main thread
             self.after(0, self.update_ui_after_fetch)
             
@@ -445,6 +662,26 @@ class StockTrackerApp(ctk.CTk):
         else:
             self.exchange_rate_label.configure(text="USD/ARS: No disponible")
         self.update_ui()
+
+    def fetch_single_price_update(self, symbol):
+        try:
+            ticker = yf.Ticker(symbol)
+            # Try fast history first
+            hist = ticker.history(period="1d")
+            price = 0
+            if not hist.empty:
+                price = hist["Close"].iloc[-1]
+            else:
+                # Fallback to info
+                info = ticker.info
+                price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose') or 0
+            
+            if price > 0:
+                PortfolioDB.update_current_price(symbol, price)
+                # Refresh UI
+                self.after(0, self.update_ui)
+        except Exception as e:
+            print(f"Auto-fetch error for {symbol}: {e}")
 
     def update_ui(self):
         # Calculation
@@ -499,7 +736,7 @@ class StockTrackerApp(ctk.CTk):
                 (comp_name, "white"),
                 (f"{row['Quantity']:.2f}", "white"),
                 (f"${row['BuyPrice']:.2f}", "white"),
-                (str(row.get('BuyDate', '')), "white"),
+                # Removed Date column as it's less relevant for aggregated view
                 (f"${row['CurrentPrice']:.2f}", "white"),
                 (f"${row['Value']:.2f}", "white"),
                 (f"${row['ProfitLoss']:.2f}", pl_color)
@@ -515,6 +752,11 @@ class StockTrackerApp(ctk.CTk):
                 lbl.bind("<Leave>", on_leave)
                 
                 self.row_widgets[index].append(lbl)
+
+            # Sell Button
+            sell_btn = ctk.CTkButton(self.table_frame, text="$", width=30, fg_color="orange", hover_color="darkorange",
+                                    command=lambda i=index: self.open_sell_dialog(i))
+            sell_btn.grid(row=r, column=7, padx=5, pady=2)
 
             # Delete Button
             # We use a closure or default arg to capture the current index
