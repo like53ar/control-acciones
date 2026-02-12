@@ -355,6 +355,13 @@ class StockTrackerApp(ctk.CTk):
         self.suggestion_dialog = None
         self.row_widgets = {} # Stores references to row labels for hover effect
         
+        # Filtering & Sorting State
+        self.current_filter = "Todos"  # Asset type filter
+        self.current_search = ""  # Search text
+        self.current_sort = None  # Sort criteria
+        self.compact_view = False  # View mode toggle
+        self.filtered_portfolio = pd.DataFrame()  # Filtered data
+        
         # Caching & Auto-Refresh State
         self.last_update_time = None
         self.refresh_job = None
@@ -539,9 +546,65 @@ class StockTrackerApp(ctk.CTk):
         self.card_current_value = self.create_summary_card(self.summary_frame, "Valor Actual", "$0.00", 1)
         self.card_profit_loss = self.create_summary_card(self.summary_frame, "G/P Total", "$0.00 (0.00%)", 2)
 
+        # Controls Bar
+        self.controls_frame = ctk.CTkFrame(self.main_frame)
+        self.controls_frame.grid(row=1, column=0, padx=20, pady=(0, 10), sticky="ew")
+        self.controls_frame.grid_columnconfigure(1, weight=1)
+        
+        # Search
+        self.search_entry = ctk.CTkEntry(self.controls_frame, placeholder_text="🔍 Buscar símbolo o empresa...", width=250)
+        self.search_entry.grid(row=0, column=0, padx=5, pady=5, sticky="w")
+        self.search_entry.bind("<KeyRelease>", self.on_search_change)
+        
+        # Asset Type Filter
+        self.filter_menu = ctk.CTkOptionMenu(
+            self.controls_frame, 
+            values=["Todos", "US Stocks", "CEDEARs", "Crypto"],
+            command=self.on_filter_change,
+            width=140
+        )
+        self.filter_menu.grid(row=0, column=1, padx=5, pady=5)
+        self.filter_menu.set("Todos")
+        
+        # Sort Buttons
+        sort_frame = ctk.CTkFrame(self.controls_frame, fg_color="transparent")
+        sort_frame.grid(row=0, column=2, padx=5, pady=5)
+        
+        ctk.CTkLabel(sort_frame, text="Ordenar:", font=ctk.CTkFont(size=12, weight="bold")).pack(side="left", padx=(0, 5))
+        
+        self.sort_gain_btn = ctk.CTkButton(
+            sort_frame, text="Ganancia %", width=100, height=28,
+            command=lambda: self.on_sort_change('Ganancia %')
+        )
+        self.sort_gain_btn.pack(side="left", padx=2)
+        
+        self.sort_value_btn = ctk.CTkButton(
+            sort_frame, text="Valor", width=80, height=28,
+            command=lambda: self.on_sort_change('Valor')
+        )
+        self.sort_value_btn.pack(side="left", padx=2)
+        
+        self.sort_symbol_btn = ctk.CTkButton(
+            sort_frame, text="Símbolo", width=80, height=28,
+            command=lambda: self.on_sort_change('Símbolo')
+        )
+        self.sort_symbol_btn.pack(side="left", padx=2)
+        
+        # View Toggle
+        self.view_toggle_btn = ctk.CTkButton(
+            self.controls_frame, 
+            text="Vista: Detallada", 
+            width=130, 
+            height=28,
+            command=self.toggle_view,
+            fg_color="#555",
+            hover_color="#666"
+        )
+        self.view_toggle_btn.grid(row=0, column=3, padx=5, pady=5, sticky="e")
+
         # Aggregated Summary Area (Replaces Chart)
         self.agg_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Resumen por Acción", height=150)
-        self.agg_frame.grid(row=1, column=0, padx=20, pady=10, sticky="nsew")
+        self.agg_frame.grid(row=2, column=0, padx=20, pady=10, sticky="nsew")
         self.agg_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
 
         # Headers for Aggregated Table
@@ -551,7 +614,7 @@ class StockTrackerApp(ctk.CTk):
 
         # Table Area (Scrollable Frame mimicking a table)
         self.table_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Tus Posiciones")
-        self.table_frame.grid(row=2, column=0, padx=20, pady=20, sticky="nsew")
+        self.table_frame.grid(row=3, column=0, padx=20, pady=20, sticky="nsew")
         self.table_frame.grid_columnconfigure((0, 1, 2, 3, 4, 5, 6, 7, 8, 9), weight=1)
 
         # Table Headers
@@ -844,9 +907,13 @@ class StockTrackerApp(ctk.CTk):
         self.portfolio["Invested"] = self.portfolio["Quantity"] * self.portfolio["BuyPrice"]
         self.portfolio["ProfitLoss"] = self.portfolio["Value"] - self.portfolio["Invested"]
 
-        total_invested = self.portfolio["Invested"].sum()
-        total_value = self.portfolio["Value"].sum()
-        total_pl = self.portfolio["ProfitLoss"].sum()
+        # Apply filters and sorting
+        display_df = self.apply_filters_and_sort()
+
+        # Calculate totals from FILTERED data
+        total_invested = display_df["Invested"].sum() if not display_df.empty else 0
+        total_value = display_df["Value"].sum() if not display_df.empty else 0
+        total_pl = display_df["ProfitLoss"].sum() if not display_df.empty else 0
         total_pl_pct = (total_pl / total_invested * 100) if total_invested > 0 else 0
 
         # Update Cards
@@ -862,9 +929,23 @@ class StockTrackerApp(ctk.CTk):
             if int(widget.grid_info()["row"]) > 0: # Skip header
                 widget.destroy()
 
-        for index, row in self.portfolio.iterrows():
-            print(f"Rendering row {index}: {row['Symbol']}")
-            r = index + 1
+        # Update table headers based on view mode
+        if self.compact_view:
+            headers = ["Símbolo", "Empresa", "Cant.", "P. Actual", "G/P", "Acciones"]
+        else:
+            headers = ["Símbolo", "Empresa", "Trend (1m)", "Riesgo", "Cant.", "P. Compra", "P. Actual", "Valor", "G/P", "Acciones"]
+        
+        # Clear and recreate headers
+        for widget in self.table_frame.winfo_children():
+            if int(widget.grid_info()["row"]) == 0:
+                widget.destroy()
+        
+        for i, header in enumerate(headers):
+            ctk.CTkLabel(self.table_frame, text=header, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=5)
+
+        # Render rows from filtered dataframe
+        for idx, (index, row) in enumerate(display_df.iterrows()):
+            r = idx + 1
             self.row_widgets[index] = []
             
             # Data Preparation
@@ -873,71 +954,83 @@ class StockTrackerApp(ctk.CTk):
             if len(comp_name) > 15: comp_name = comp_name[:15] + "..."
             
             symbol = row["Symbol"]
+            col = 0  # Column counter for compact view
             
-            # --- Column 0: Symbol ---
+            # --- Column: Symbol ---
             lbl_sym = ctk.CTkLabel(self.table_frame, text=str(symbol), text_color="white", width=60)
-            lbl_sym.grid(row=r, column=0, padx=5, pady=2)
+            lbl_sym.grid(row=r, column=col, padx=5, pady=2)
             self.row_widgets[index].append(lbl_sym)
+            col += 1
 
-            # --- Column 1: Company ---
+            # --- Column: Company ---
             lbl_comp = ctk.CTkLabel(self.table_frame, text=comp_name, text_color="silver", width=120)
-            lbl_comp.grid(row=r, column=1, padx=5, pady=2)
+            lbl_comp.grid(row=r, column=col, padx=5, pady=2)
             self.row_widgets[index].append(lbl_comp)
+            col += 1
 
-            # --- Column 2: Sparkline (Trend) ---
-            spark_label = ctk.CTkLabel(self.table_frame, text="")
-            # Check if we have a sparkline for this symbol
-            if hasattr(self, 'sparklines') and symbol in self.sparklines:
-                spark_label.configure(image=self.sparklines[symbol], text="")
-            else:
-                spark_label.configure(text="---")
-            spark_label.grid(row=r, column=2, padx=5, pady=2)
-            self.row_widgets[index].append(spark_label)
+            if not self.compact_view:
+                # --- Column: Sparkline (Trend) ---
+                spark_label = ctk.CTkLabel(self.table_frame, text="")
+                if hasattr(self, 'sparklines') and symbol in self.sparklines:
+                    spark_label.configure(image=self.sparklines[symbol], text="")
+                else:
+                    spark_label.configure(text="---")
+                spark_label.grid(row=r, column=col, padx=5, pady=2)
+                self.row_widgets[index].append(spark_label)
+                col += 1
 
-            # --- Column 3: Risk (Volatility) ---
-            vol_val = self.volatility_map.get(symbol, 0) if hasattr(self, 'volatility_map') else 0
-            if vol_val < 1.5:
-                risk_color = "green"
-                risk_char = "●" # Low
-            elif vol_val < 3.0:
-                risk_color = "yellow"
-                risk_char = "●" # Med
-            else:
-                risk_color = "red"
-                risk_char = "●" # High
+                # --- Column: Risk (Volatility) ---
+                vol_val = self.volatility_map.get(symbol, 0) if hasattr(self, 'volatility_map') else 0
+                if vol_val < 1.5:
+                    risk_color = "green"
+                    risk_char = "●"
+                elif vol_val < 3.0:
+                    risk_color = "yellow"
+                    risk_char = "●"
+                else:
+                    risk_color = "red"
+                    risk_char = "●"
 
-            lbl_risk = ctk.CTkLabel(self.table_frame, text=f"{risk_char} {vol_val:.1f}%", text_color=risk_color)
-            lbl_risk.grid(row=r, column=3, padx=5, pady=2)
-            self.row_widgets[index].append(lbl_risk)
+                lbl_risk = ctk.CTkLabel(self.table_frame, text=f"{risk_char} {vol_val:.1f}%", text_color=risk_color)
+                lbl_risk.grid(row=r, column=col, padx=5, pady=2)
+                self.row_widgets[index].append(lbl_risk)
+                col += 1
 
-            # --- Column 4: Quantity ---
+            # --- Column: Quantity ---
             lbl_qty = ctk.CTkLabel(self.table_frame, text=f"{row['Quantity']:.2f}", text_color="white")
-            lbl_qty.grid(row=r, column=4, padx=5, pady=2)
+            lbl_qty.grid(row=r, column=col, padx=5, pady=2)
             self.row_widgets[index].append(lbl_qty)
+            col += 1
             
-            # --- Column 5: Buy Price ---
-            lbl_buy = ctk.CTkLabel(self.table_frame, text=f"${row['BuyPrice']:.2f}", text_color="white")
-            lbl_buy.grid(row=r, column=5, padx=5, pady=2)
-            self.row_widgets[index].append(lbl_buy)
+            if not self.compact_view:
+                # --- Column: Buy Price ---
+                lbl_buy = ctk.CTkLabel(self.table_frame, text=f"${row['BuyPrice']:.2f}", text_color="white")
+                lbl_buy.grid(row=r, column=col, padx=5, pady=2)
+                self.row_widgets[index].append(lbl_buy)
+                col += 1
 
-            # --- Column 6: Current Price ---
+            # --- Column: Current Price ---
             lbl_curr = ctk.CTkLabel(self.table_frame, text=f"${row['CurrentPrice']:.2f}", text_color="white")
-            lbl_curr.grid(row=r, column=6, padx=5, pady=2)
+            lbl_curr.grid(row=r, column=col, padx=5, pady=2)
             self.row_widgets[index].append(lbl_curr)
+            col += 1
 
-            # --- Column 7: Value ---
-            lbl_val = ctk.CTkLabel(self.table_frame, text=f"${row['Value']:.2f}", text_color="white", font=ctk.CTkFont(weight="bold"))
-            lbl_val.grid(row=r, column=7, padx=5, pady=2)
-            self.row_widgets[index].append(lbl_val)
+            if not self.compact_view:
+                # --- Column: Value ---
+                lbl_val = ctk.CTkLabel(self.table_frame, text=f"${row['Value']:.2f}", text_color="white", font=ctk.CTkFont(weight="bold"))
+                lbl_val.grid(row=r, column=col, padx=5, pady=2)
+                self.row_widgets[index].append(lbl_val)
+                col += 1
 
-            # --- Column 8: Profit/Loss ---
+            # --- Column: Profit/Loss ---
             lbl_pl = ctk.CTkLabel(self.table_frame, text=f"${row['ProfitLoss']:.2f}", text_color=pl_color, font=ctk.CTkFont(weight="bold"))
-            lbl_pl.grid(row=r, column=8, padx=5, pady=2)
+            lbl_pl.grid(row=r, column=col, padx=5, pady=2)
             self.row_widgets[index].append(lbl_pl)
+            col += 1
 
-            # --- Column 9: Actions ---
+            # --- Column: Actions ---
             btn_frame = ctk.CTkFrame(self.table_frame, fg_color="transparent")
-            btn_frame.grid(row=r, column=9, padx=5, pady=2)
+            btn_frame.grid(row=r, column=col, padx=5, pady=2)
             
             # Edit
             ctk.CTkButton(btn_frame, text="✎", width=30, height=20, fg_color="#444", 
@@ -960,7 +1053,83 @@ class StockTrackerApp(ctk.CTk):
                     widget.configure(fg_color=color)
                 except:
                     pass
+    
+    def on_search_change(self, event=None):
+        """Handle search input changes"""
+        self.current_search = self.search_entry.get().strip()
+        self.update_ui()
+    
+    def on_filter_change(self, value):
+        """Handle asset type filter changes"""
+        self.current_filter = value
+        self.update_ui()
+    
+    def on_sort_change(self, criteria):
+        """Handle sort button clicks"""
+        # Toggle sort if clicking same button
+        if self.current_sort == criteria:
+            self.current_sort = None
+        else:
+            self.current_sort = criteria
+        
+        # Update button colors to show active sort
+        default_color = ["#3B8ED0", "#1F6AA5"]  # CTk default blue
+        active_color = ["#2ECC71", "#27AE60"]   # Green for active
+        
+        self.sort_gain_btn.configure(fg_color=active_color if self.current_sort == 'Ganancia %' else default_color[0],
+                                      hover_color=active_color[1] if self.current_sort == 'Ganancia %' else default_color[1])
+        self.sort_value_btn.configure(fg_color=active_color if self.current_sort == 'Valor' else default_color[0],
+                                       hover_color=active_color[1] if self.current_sort == 'Valor' else default_color[1])
+        self.sort_symbol_btn.configure(fg_color=active_color if self.current_sort == 'Símbolo' else default_color[0],
+                                        hover_color=active_color[1] if self.current_sort == 'Símbolo' else default_color[1])
+        
+        self.update_ui()
+    
+    def toggle_view(self):
+        """Toggle between compact and detailed view"""
+        self.compact_view = not self.compact_view
+        view_text = "Vista: Compacta" if self.compact_view else "Vista: Detallada"
+        self.view_toggle_btn.configure(text=view_text)
+        self.update_ui()
 
+    def get_asset_type(self, symbol):
+        """Detect asset type based on symbol"""
+        symbol = str(symbol).upper()
+        if symbol.endswith('.BA'):
+            return 'CEDEARs'
+        elif any(crypto in symbol for crypto in ['BTC', 'ETH', 'DOGE', 'ADA', 'SOL', 'XRP', '-USD']):
+            return 'Crypto'
+        else:
+            return 'US Stocks'
+    
+    def apply_filters_and_sort(self):
+        """Apply current filters, search, and sorting to portfolio"""
+        df = self.portfolio.copy()
+        
+        # Apply asset type filter
+        if self.current_filter != "Todos":
+            df['AssetType'] = df['Symbol'].apply(self.get_asset_type)
+            df = df[df['AssetType'] == self.current_filter]
+        
+        # Apply search filter
+        if self.current_search:
+            search_term = self.current_search.lower()
+            mask = (df['Symbol'].str.lower().str.contains(search_term, na=False) | 
+                    df['Company'].str.lower().str.contains(search_term, na=False))
+            df = df[mask]
+        
+        # Apply sorting
+        if self.current_sort == 'Ganancia %':
+            df['ProfitPct'] = (df['ProfitLoss'] / df['Invested'] * 100)
+            df = df.sort_values('ProfitPct', ascending=False)
+        elif self.current_sort == 'Valor':
+            df = df.sort_values('Value', ascending=False)
+        elif self.current_sort == 'Símbolo':
+            df = df.sort_values('Symbol', ascending=True)
+        
+        self.filtered_portfolio = df
+        return df
+    
     def update_summary_table(self):
         # Clear existing rows
         for widget in self.agg_frame.winfo_children():
