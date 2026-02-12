@@ -309,6 +309,11 @@ class StockTrackerApp(ctk.CTk):
         self.active_search_symbol = None
         self.suggestion_dialog = None
         self.row_widgets = {} # Stores references to row labels for hover effect
+        
+        # Caching & Auto-Refresh State
+        self.last_update_time = None
+        self.refresh_job = None
+        self.refresh_interval_ms = 0
 
         # Initial Update
         self.update_ui()
@@ -324,7 +329,7 @@ class StockTrackerApp(ctk.CTk):
     def create_sidebar(self):
         self.sidebar_frame = ctk.CTkFrame(self, width=200, corner_radius=0)
         self.sidebar_frame.grid(row=0, column=0, sticky="nsew")
-        self.sidebar_frame.grid_rowconfigure(12, weight=1)
+        self.sidebar_frame.grid_rowconfigure(14, weight=1)  # Adjusted for new elements
 
         self.logo_label = ctk.CTkLabel(self.sidebar_frame, text="Portafolio", font=ctk.CTkFont(size=20, weight="bold"))
         self.logo_label.grid(row=0, column=0, padx=20, pady=(20, 10))
@@ -361,13 +366,24 @@ class StockTrackerApp(ctk.CTk):
         self.add_button = ctk.CTkButton(self.sidebar_frame, text="Agregar Posición", command=self.add_position)
         self.add_button.grid(row=9, column=0, padx=20, pady=10)
 
-        # self.remove_button removed as we moved to row-based deletion
+        self.update_button = ctk.CTkButton(self.sidebar_frame, text="Actualizar Datos", command=self.manual_update, fg_color="green")
+        self.update_button.grid(row=10, column=0, padx=20, pady=(10, 5))
 
-        self.update_button = ctk.CTkButton(self.sidebar_frame, text="Actualizar Datos", command=self.start_market_update, fg_color="green")
-        self.update_button.grid(row=10, column=0, padx=20, pady=(10, 20))
+        # Last Update Label
+        self.last_update_label = ctk.CTkLabel(self.sidebar_frame, text="Última act: --:--", font=ctk.CTkFont(size=12))
+        self.last_update_label.grid(row=11, column=0, padx=20, pady=(0, 10))
+
+        # Auto-Refresh Menu
+        self.refresh_label = ctk.CTkLabel(self.sidebar_frame, text="Auto-Refresh:", font=ctk.CTkFont(size=12, weight="bold"))
+        self.refresh_label.grid(row=12, column=0, padx=20, pady=(10, 0))
+        
+        self.refresh_option = ctk.CTkOptionMenu(self.sidebar_frame, values=["Off", "5 min", "10 min", "15 min"],
+                                                command=self.change_refresh_interval)
+        self.refresh_option.grid(row=13, column=0, padx=20, pady=(0, 20))
+        self.refresh_option.set("Off")
 
         self.exchange_rate_label = ctk.CTkLabel(self.sidebar_frame, text="USD/ARS: ---", font=ctk.CTkFont(size=12, weight="bold"))
-        self.exchange_rate_label.grid(row=11, column=0, padx=20, pady=(0, 20))
+        self.exchange_rate_label.grid(row=14, column=0, padx=20, pady=(0, 20))
 
         # Bindings for auto-lookup
         self.symbol_entry.bind("<FocusOut>", self.on_symbol_focus_out)
@@ -582,10 +598,44 @@ class StockTrackerApp(ctk.CTk):
     def remove_position(self):
         pass # Deprecated
 
-    def start_market_update(self):
+    def manual_update(self):
+        # Force update regardless of cache
+        self.start_market_update(force=True)
+
+    def change_refresh_interval(self, selection):
+        if self.refresh_job:
+            self.after_cancel(self.refresh_job)
+            self.refresh_job = None
+            
+        if selection == "Off":
+            return
+            
+        minutes = int(selection.split(" ")[0])
+        self.refresh_interval_ms = minutes * 60 * 1000
+        self.schedule_auto_refresh()
+
+    def schedule_auto_refresh(self):
+        if self.refresh_interval_ms > 0:
+            self.refresh_job = self.after(self.refresh_interval_ms, self.auto_refresh_task)
+
+    def auto_refresh_task(self):
+        self.start_market_update(force=True) # Auto-refresh implies we want new data
+        self.schedule_auto_refresh()
+
+    def start_market_update(self, force=False):
         if self.portfolio.empty:
             return
         
+        # Cache Check
+        CACHE_DURATION = 60 # seconds
+        if not force and self.last_update_time:
+            elapsed = (datetime.now() - self.last_update_time).total_seconds()
+            if elapsed < CACHE_DURATION:
+                print("Using cached data")
+                # Even if cached, we might want to refresh UI if something changed locally
+                self.update_ui()
+                return
+
         self.update_button.configure(state="disabled", text="Actualizando...")
         self.exchange_rate_label.configure(text="USD/ARS: Calculando...")
         thread = threading.Thread(target=self.fetch_market_data)
@@ -655,6 +705,9 @@ class StockTrackerApp(ctk.CTk):
             self.after(0, lambda: self.update_button.configure(state="normal", text="Actualizar Datos"))
 
     def update_ui_after_fetch(self):
+        self.last_update_time = datetime.now()
+        self.last_update_label.configure(text=f"Última act: {self.last_update_time.strftime('%H:%M:%S')}")
+        
         self.save_portfolio() # Save the fetched prices too if we want, or just re-render
         if hasattr(self, 'ars_rate') and self.ars_rate > 0:
             source_text = f" ({self.rate_source})" if self.rate_source else ""
