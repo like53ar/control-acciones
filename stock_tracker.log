@@ -1,0 +1,16 @@
+2026-02-19 12:15:49,509 - INFO - Database backup created: backups\portfolio_2026-02-19.db.bak
+2026-02-19 12:15:56,130 - ERROR - DB Worker Error: no such table: price_history
+2026-02-19 12:18:45,691 - ERROR - DB Worker Error: no such table: price_history
+2026-02-19 12:19:20,984 - ERROR - DB Worker Error: no such table: price_history
+2026-02-19 12:19:37,725 - ERROR - DB Worker Error: no such table: price_history
+2026-02-19 12:20:16,980 - ERROR - DB Worker Error: no such table: price_history
+2026-02-19 12:23:39,593 - ERROR - DB Worker Error: no such table: price_history
+2026-02-19 12:38:53,501 - INFO - Old schema detected. Rebuilding portfolio for individual positions...
+2026-02-19 12:38:53,508 - INFO - Rebuilding portfolio from transactions...
+2026-02-19 12:38:53,512 - INFO - Portfolio rebuild complete.
+2026-02-19 12:39:03,836 - ERROR - Error fetching data: type object 'PortfolioDB' has no attribute 'update_prices_batch'
+2026-02-19 12:39:23,761 - ERROR - Error fetching data: type object 'PortfolioDB' has no attribute 'update_prices_batch'
+2026-02-19 12:39:41,242 - ERROR - Error fetching data: type object 'PortfolioDB' has no attribute 'update_prices_batch'
+2026-02-19 12:49:34,571 - ERROR - HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: EEM,BA"}}}
+2026-02-19 12:49:38,401 - ERROR - HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: EEM,BA"}}}
+2026-02-19 12:54:22,925 - ERROR - HTTP Error 404: {"quoteSummary":{"result":null,"error":{"code":"Not Found","description":"Quote not found for symbol: EEM.BAR"}}}

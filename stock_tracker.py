@@ -8,13 +8,32 @@ from tkinter import messagebox
 import requests
 import sqlite3
 from datetime import datetime
+import time
+import random
 import shutil
+from tkinter import filedialog
 
-DB_FILE = "portfolio.db"
-CSV_FILE = "cartera.csv"
+
+import logging
+from typing import Optional, List, Dict, Any, Tuple, Union, Callable
+import config
+
+# Configure Logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler("stock_tracker.log"),
+        logging.StreamHandler()
+    ]
+)
+
+DB_FILE = config.DB_FILE
+CSV_FILE = config.CSV_FILE
 
 class DBWorker:
-    def __init__(self):
+    def __init__(self) -> None:
+
         self.queue = queue.Queue()
         self.running = True
         self.thread = threading.Thread(target=self._run, daemon=True)
@@ -42,12 +61,12 @@ class DBWorker:
                     if callback:
                         callback(res)
                 except Exception as e:
-                    print(f"DB Worker Error: {e}")
+                    logging.error(f"DB Worker Error: {e}")
                     conn.rollback()
                 finally:
                     self.queue.task_done()
             except Exception as e:
-                print(f"Worker Loop Error: {e}")
+                logging.error(f"Worker Loop Error: {e}")
         
         conn.close()
 
@@ -79,50 +98,202 @@ class PortfolioDB:
             )
         ''')
         
-        # Portfolio table
+        # Portfolio Table - Now with Individual Lots support
+        # We need a unique ID for each lot. Symbol is no longer unique/PK.
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS portfolio (
-                symbol TEXT PRIMARY KEY,
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT NOT NULL,
                 company TEXT,
                 quantity REAL,
-                avg_price REAL,
+                buy_price REAL,
+                buy_date TEXT,
                 current_price REAL DEFAULT 0
             )
         ''')
         
-        # Check if column exists
+        # Check if column exists (old schema migration)
+        # This block is now mostly for handling transitions from older schemas.
+        # If 'buy_date' is missing, it implies an older schema that needs rebuilding.
+        # The main app init will handle the rebuild.
         try:
             cursor.execute('ALTER TABLE portfolio ADD COLUMN current_price REAL DEFAULT 0')
-        except:
-            pass
+        except sqlite3.OperationalError:
+            pass # Column already exists or other error, ignore for now.
 
         # Indexes for Performance
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_symbol ON transactions(symbol)')
         cursor.execute('CREATE INDEX IF NOT EXISTS idx_transactions_date ON transactions(date)')
+
+        # Price History table
+        cursor.execute('''
+            CREATE TABLE IF NOT EXISTS price_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                symbol TEXT,
+                date TEXT,
+                price REAL,
+                UNIQUE(symbol, date)
+            )
+        ''')
+        cursor.execute('CREATE INDEX IF NOT EXISTS idx_history_symbol ON price_history(symbol)')
         
+        # Add transaction_id to portfolio if not exists (Persistent Deletion support)
+        try:
+             cursor.execute('ALTER TABLE portfolio ADD COLUMN transaction_id INTEGER')
+        except sqlite3.OperationalError:
+             pass
+
         conn.commit()
         conn.close()
 
     @staticmethod
-    def migrate_csv_if_needed():
+    def rebuild_portfolio_from_transactions():
+        """Rebuilds the portfolio table from scratch using transactions (FIFO logic for sells)"""
+        logging.info("Rebuilding portfolio from transactions...")
+        conn = sqlite3.connect(DB_FILE)
+        cursor = conn.cursor()
+        
+        try:
+            # Clear current portfolio
+            cursor.execute("DELETE FROM portfolio")
+            
+            # Get all transactions sorted by date/id
+            cursor.execute("SELECT id, symbol, company, action, quantity, price, date FROM transactions ORDER BY date ASC, id ASC")
+            transactions = cursor.fetchall()
+            
+            # Track lots in memory: symbol -> list of {qty, price, date, company, txn_id}
+            portfolio_lots = {}
+            
+            for txn_id, symbol, company, action, quantity, price, date in transactions:
+                if symbol not in portfolio_lots:
+                    portfolio_lots[symbol] = []
+                
+                if action == 'BUY':
+                    portfolio_lots[symbol].append({
+                        'qty': quantity, 
+                        'price': price, 
+                        'date': date,
+                        'company': company,
+                        'txn_id': txn_id
+                    })
+                elif action == 'SELL':
+                    qty_to_sell = quantity
+                    # FIFO Strategy
+                    while qty_to_sell > 0 and portfolio_lots[symbol]:
+                        lot = portfolio_lots[symbol][0]
+                        if lot['qty'] > qty_to_sell:
+                            lot['qty'] -= qty_to_sell
+                            qty_to_sell = 0
+                        else:
+                            qty_to_sell -= lot['qty']
+                            portfolio_lots[symbol].pop(0)
+            
+            # Insert remaining lots back into DB
+            for symbol, lots in portfolio_lots.items():
+                for lot in lots:
+                    cursor.execute('''
+                        INSERT INTO portfolio (symbol, company, quantity, buy_price, buy_date, current_price, transaction_id)
+                        VALUES (?, ?, ?, ?, ?, 0, ?)
+                    ''', (symbol, lot['company'], lot['qty'], lot['price'], lot['date'], lot['txn_id']))
+            
+            conn.commit()
+            logging.info("Portfolio rebuild complete.")
+        except Exception as e:
+            logging.error(f"Rebuild failed: {e}")
+            conn.rollback()
+        finally:
+            conn.close()
+
+    @staticmethod
+    def backup_db() -> None:
+        """Create a daily backup of the database"""
+        if not os.path.exists(DB_FILE):
+            return
+            
+        backup_dir = "backups"
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+            
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        backup_file = os.path.join(backup_dir, f"portfolio_{date_str}.db.bak")
+        
+        try:
+            if not os.path.exists(backup_file):
+                shutil.copy2(DB_FILE, backup_file)
+                logging.info(f"Database backup created: {backup_file}")
+                
+                # Prune old backups (keep last 7 days)
+                backups = sorted([os.path.join(backup_dir, f) for f in os.listdir(backup_dir) if f.endswith(".db.bak")])
+                while len(backups) > 7:
+                    os.remove(backups[0])
+                    logging.info(f"Removed old backup: {backups[0]}")
+                    backups.pop(0)
+        except Exception as e:
+            logging.error(f"Backup failed: {e}")
+
+    @staticmethod
+    def migrate_csv_if_needed() -> None:
         if os.path.exists(CSV_FILE) and not os.path.exists(DB_FILE):
-            print("Migrating CSV to DB...")
+            logging.info("Migrating CSV to DB...")
             PortfolioDB.init_db()
             try:
-                df = pd.read_csv(CSV_FILE)
-                # We do this synchronously as it is startup
+                # Use on_bad_lines='skip' to avoid crashing on malformed lines
+                df = pd.read_csv(CSV_FILE, on_bad_lines='skip')
+                
+                # Check for required columns
+                required_cols = ['Symbol', 'Quantity', 'BuyPrice']
+                if not all(col in df.columns for col in required_cols):
+                    logging.error("CSV missing required columns for migration")
+                    return
+
+                conn = sqlite3.connect(DB_FILE)
+                cursor = conn.cursor()
+                
+                current_date = datetime.now().strftime("%d/%m/%Y")
+                
                 for _, row in df.iterrows():
-                   # ... logic similar to add_transaction but direct ...
-                   pass # Implementation simplified for migration as it's one-off
-                # Keep it simple: Just init db. The implementation below handles new adds.
-                # If we really need migration, we'd replicate the logic. 
-                # Assuming previous migration worked or file is gone.
+                    symbol = str(row['Symbol']).strip().upper()
+                    if not symbol: continue
+                    
+                    qty = float(row['Quantity'])
+                    price = float(row['BuyPrice'])
+                    # company might be missing or named differently
+                    company = str(row.get('Company', symbol))
+                    buy_date = str(row.get('BuyDate', current_date))
+                    
+                    # Direct insert to avoid threading issues during startup
+                    # 1. Log transaction
+                    cursor.execute('''
+                        INSERT INTO transactions (date, symbol, company, action, quantity, price)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    ''', (buy_date, symbol, company, 'BUY', qty, price))
+                    
+                    # 2. Insert into portfolio as individual lot
+                    cursor.execute('''
+                        INSERT INTO portfolio (symbol, company, quantity, buy_price, buy_date, current_price)
+                        VALUES (?, ?, ?, ?, ?, 0)
+                    ''', (symbol, company, qty, price, buy_date))
+                
+                conn.commit()
+                conn.close()
+                
+                # Rename CSV to avoid re-migration
+                shutil.move(CSV_FILE, f"{CSV_FILE}.migrated")
+                logging.info("Migration completed successfully")
+                
             except Exception as e:
-                print(f"Migration failed: {e}")
+                logging.error(f"Migration failed: {e}")
+                # If migration partially failed, we might want to delete the partial DB so it tries again?
+                # For now let's just log.
         elif not os.path.exists(DB_FILE):
              PortfolioDB.init_db()
 
     # --- Write Operations (Queued) ---
+
+    @staticmethod
+    def _execute_sql(cursor, sql, params=()):
+        """Generic helper to execute SQL with parameters."""
+        cursor.execute(sql, params)
 
     @staticmethod
     def _add_transaction_sql(cursor, symbol, company, action, quantity, price, date):
@@ -132,65 +303,98 @@ class PortfolioDB:
             VALUES (?, ?, ?, ?, ?, ?)
         ''', (date, symbol, company, action, quantity, price))
         
-        # 2. Update Portfolio State
-        cursor.execute('SELECT quantity, avg_price FROM portfolio WHERE symbol = ?', (symbol,))
-        row = cursor.fetchone()
+        txn_id = cursor.lastrowid
         
-        if row:
-            current_qty, current_avg = row
-            if action == 'BUY':
-                new_qty = current_qty + quantity
-                new_avg = ((current_qty * current_avg) + (quantity * price)) / new_qty
-                cursor.execute('UPDATE portfolio SET quantity = ?, avg_price = ? WHERE symbol = ?', 
-                               (new_qty, new_avg, symbol))
-            elif action == 'SELL':
-                new_qty = max(0, current_qty - quantity)
-                if new_qty == 0:
-                    cursor.execute('DELETE FROM portfolio WHERE symbol = ?', (symbol,))
+        # 2. Update Portfolio State (Individual Lots)
+        if action == 'BUY':
+            # Just add a new row
+            cursor.execute('''
+                INSERT INTO portfolio (symbol, company, quantity, buy_price, buy_date, current_price, transaction_id)
+                VALUES (?, ?, ?, ?, ?, 0, ?)
+            ''', (symbol, company, quantity, price, date, txn_id))
+            
+        elif action == 'SELL':
+            # FIFO Logic: Deduct from oldest lots first
+            qty_to_sell = quantity
+            
+            # Get lots sorted by date (and id/insertion order implicitly)
+            cursor.execute("SELECT id, quantity FROM portfolio WHERE symbol = ? ORDER BY buy_date ASC, id ASC", (symbol,))
+            lots = cursor.fetchall()
+            
+            for lot_id, lot_qty in lots:
+                if qty_to_sell <= 0:
+                    break
+                    
+                if lot_qty > qty_to_sell:
+                    # Partial sell of this lot
+                    new_qty = lot_qty - qty_to_sell
+                    cursor.execute("UPDATE portfolio SET quantity = ? WHERE id = ?", (new_qty, lot_id))
+                    qty_to_sell = 0
                 else:
-                    cursor.execute('UPDATE portfolio SET quantity = ? WHERE symbol = ?', 
-                                   (new_qty, symbol))
-        else:
-            if action == 'BUY':
-                cursor.execute('INSERT INTO portfolio (symbol, company, quantity, avg_price) VALUES (?, ?, ?, ?)',
-                               (symbol, company, quantity, price))
+                    # Full sell of this lot
+                    cursor.execute("DELETE FROM portfolio WHERE id = ?", (lot_id,))
+                    qty_to_sell -= lot_qty
 
     @staticmethod
     def add_transaction(symbol, company, action, quantity, price, date, callback=None):
         db_worker.submit(PortfolioDB._add_transaction_sql, (symbol, company, action, quantity, price, date), callback)
 
     @staticmethod
-    def _update_symbol_sql(cursor, symbol, quantity, price):
-        cursor.execute('UPDATE portfolio SET quantity = ?, avg_price = ? WHERE symbol = ?', 
-                       (quantity, price, symbol))
+    def _update_position_by_id_sql(cursor, pos_id, quantity, buy_price, buy_date):
+        cursor.execute('UPDATE portfolio SET quantity = ?, buy_price = ?, buy_date = ? WHERE id = ?', 
+                       (quantity, buy_price, buy_date, pos_id))
 
     @staticmethod
-    def update_symbol(symbol, quantity, price, callback=None):
-        db_worker.submit(PortfolioDB._update_symbol_sql, (symbol, quantity, price), callback)
-
-    @staticmethod
-    def _delete_symbol_sql(cursor, symbol):
-        cursor.execute('DELETE FROM portfolio WHERE symbol = ?', (symbol,))
+    def update_position_by_id(pos_id, quantity, buy_price, buy_date, callback=None):
+        db_worker.submit(PortfolioDB._update_position_by_id_sql, (pos_id, quantity, buy_price, buy_date), callback)
 
     @staticmethod
     def delete_symbol(symbol, callback=None):
-        db_worker.submit(PortfolioDB._delete_symbol_sql, (symbol,), callback)
+         db_worker.submit(PortfolioDB._execute_sql, ('DELETE FROM portfolio WHERE symbol = ?', (symbol,)), callback)
+    
+    @staticmethod
+    def _delete_position_by_id_sql(cursor, pos_id):
+        # Find transaction ID from portfolio
+        cursor.execute("SELECT transaction_id FROM portfolio WHERE id = ?", (pos_id,))
+        row = cursor.fetchone()
+        
+        # Delete from Portfolio
+        cursor.execute('DELETE FROM portfolio WHERE id = ?', (pos_id,))
+        
+        # Delete from Transactions (Persistent)
+        if row and row[0]:
+            txn_id = row[0]
+            cursor.execute('DELETE FROM transactions WHERE id = ?', (txn_id,))
+
+    @staticmethod
+    def delete_position_by_id(pos_id, callback=None):
+         db_worker.submit(PortfolioDB._delete_position_by_id_sql, (pos_id,), callback)
 
     @staticmethod
     def _update_prices_batch_sql(cursor, price_dict):
-        # Batch update using executemany or just a loop inside the transaction
-        data = [(price, symbol) for symbol, price in price_dict.items()]
-        cursor.executemany('UPDATE portfolio SET current_price = ? WHERE symbol = ?', data)
+        # 1. Update Portfolio Current Prices (All lots for the symbol)
+        for symbol, price in price_dict.items():
+            cursor.execute('UPDATE portfolio SET current_price = ? WHERE symbol = ?', (price, symbol))
+        
+        # 2. Update Price History (Daily closing price)
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        history_data = [(symbol, date_str, price) for symbol, price in price_dict.items()]
+        
+        cursor.executemany('''
+            INSERT INTO price_history (symbol, date, price) 
+            VALUES (?, ?, ?)
+            ON CONFLICT(symbol, date) DO UPDATE SET price=excluded.price
+        ''', history_data)
 
     @staticmethod
     def update_prices_batch(price_dict, callback=None):
         db_worker.submit(PortfolioDB._update_prices_batch_sql, (price_dict,), callback)
 
     @staticmethod
-    def update_current_price(symbol, price):
+    def update_current_price(symbol, price, callback=None):
         # Deprecated in favor of batch, but kept for compatibility if needed.
         # We can implement it as a single-item batch.
-        PortfolioDB.update_prices_batch({symbol: price})
+        PortfolioDB.update_prices_batch({symbol: price}, callback)
 
     # --- Read Operations (Direct) ---
 
@@ -198,8 +402,10 @@ class PortfolioDB:
     def get_portfolio_df():
         conn = sqlite3.connect(DB_FILE)
         try:
-            df = pd.read_sql_query("SELECT symbol as Symbol, company as Company, quantity as Quantity, avg_price as BuyPrice, current_price as CurrentPrice FROM portfolio", conn)
-        except:
+            # We now select all lots. We alias buy_price to BuyPrice for compatibility with existing UI logic
+            df = pd.read_sql_query("SELECT id, symbol as Symbol, company as Company, quantity as Quantity, buy_price as BuyPrice, buy_date as BuyDate, current_price as CurrentPrice FROM portfolio", conn)
+        except Exception as e:
+             logging.error(f"Error loading portfolio: {e}")
              df = pd.DataFrame()
         conn.close()
         return df
@@ -325,13 +531,76 @@ class EditPositionDialog(ctk.CTkToplevel):
         except ValueError:
             messagebox.showerror("Error", "Cantidad y Precio deben ser numéricos")
 
+class ToolTip(object):
+    """
+    create a tooltip for a given widget
+    """
+    def __init__(self, widget, text='widget info'):
+        self.wait_time = 500     # milliseconds
+        self.wrap_length = 180   # pixels
+        self.widget = widget
+        self.text = text
+        self.widget.bind("<Enter>", self.enter)
+        self.widget.bind("<Leave>", self.leave)
+        self.widget.bind("<ButtonPress>", self.leave)
+        self.id = None
+        self.tw = None
+
+    def enter(self, event=None):
+        self.schedule()
+
+    def leave(self, event=None):
+        self.unschedule()
+        self.hidetip()
+
+    def schedule(self):
+        self.unschedule()
+        self.id = self.widget.after(self.wait_time, self.showtip)
+
+    def unschedule(self):
+        id = self.id
+        self.id = None
+        if id:
+            self.widget.after_cancel(id)
+
+    def showtip(self, event=None):
+        x = y = 0
+        x, y, cx, cy = self.widget.bbox("insert")
+        x += self.widget.winfo_rootx() + 25
+        y += self.widget.winfo_rooty() + 20
+        # creates a toplevel window
+        self.tw = ctk.CTkToplevel(self.widget)
+        # Leaves only the label and removes the app window
+        self.tw.wm_overrideredirect(True)
+        self.tw.wm_geometry("+%d+%d" % (x, y))
+        label = ctk.CTkLabel(self.tw, text=self.text, justify='left',
+                       background_color="#333333",
+                       text_color="white",
+                       corner_radius=4,
+                       width=self.wrap_length)
+        label.pack(ipadx=1)
+
+    def hidetip(self):
+        tw = self.tw
+        self.tw= None
+        if tw:
+            tw.destroy()
+
 # Configuration
-ctk.set_appearance_mode("Dark")  # Modes: "System" (standard), "Dark", "Light"
-ctk.set_default_color_theme("blue")  # Themes: "blue" (standard), "green", "dark-blue"
-DATA_FILE = "cartera.csv"
+ctk.set_appearance_mode(config.THEME_MODE)
+ctk.set_default_color_theme(config.COLOR_THEME)
+DATA_FILE = config.CSV_FILE
+
+# Helper for currency formatting (European/Latam style: 1.000,00)
+def format_currency(value):
+    try:
+        return f"{value:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except:
+        return str(value)
 
 class StockTrackerApp(ctk.CTk):
-    def __init__(self):
+    def __init__(self) -> None:
+
         super().__init__()
 
         # Window Setup
@@ -343,6 +612,40 @@ class StockTrackerApp(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         # Data
+        PortfolioDB.init_db() # Ensure tables exist (e.g. price_history)
+        
+        # Check if we need to migrate/rebuild for the new schema
+        # A simple check: if 'portfolio' exists but has no 'buy_date' column, we drop and rebuild.
+        # Or simpler: Just always rebuild on startup from transactions if we suspect schema change.
+        # To be safe for this transition, let's force a rebuild if we are migrating schema.
+        try:
+            conn = sqlite3.connect(DB_FILE)
+            cursor = conn.cursor()
+            cursor.execute("PRAGMA table_info(portfolio)")
+            columns = [info[1] for info in cursor.fetchall()]
+            
+            if 'buy_date' not in columns:
+                logging.info("Old schema detected. Rebuilding portfolio for individual positions...")
+                conn.close() # Close before drop
+                conn = sqlite3.connect(DB_FILE)
+                conn.execute("DROP TABLE IF EXISTS portfolio")
+                conn.commit()
+                conn.close()
+                PortfolioDB.init_db()
+                PortfolioDB.rebuild_portfolio_from_transactions()
+            else:
+                # Check data integrity (missing transaction_ids)
+                cursor.execute("SELECT count(*) FROM portfolio WHERE transaction_id IS NULL OR transaction_id = 0")
+                count = cursor.fetchone()[0]
+                conn.close()
+                
+                if count > 0:
+                     logging.info(f"Detected {count} entries with missing transaction IDs. Rebuilding...")
+                     PortfolioDB.rebuild_portfolio_from_transactions()
+        except Exception as e:
+            logging.error(f"Schema/Data check failed: {e}")
+
+        PortfolioDB.backup_db() # Run backup before potential migration or load
         PortfolioDB.migrate_csv_if_needed()
         self.portfolio = self.load_portfolio()
         
@@ -366,8 +669,15 @@ class StockTrackerApp(ctk.CTk):
         self.last_update_time = None
         self.refresh_job = None
         self.refresh_interval_ms = 0
+        self.failed_symbols: set[str] = set() # Track failed fetches
+        self.sparkline_cache_dir = config.SPARKLINE_CACHE_DIR
+        if not os.path.exists(self.sparkline_cache_dir):
+            os.makedirs(self.sparkline_cache_dir)
+        self.sparkline_price_map = {} # Map symbol -> price used for last sparkline
+
 
         # Initial Update
+
         self.update_ui()
 
     def load_portfolio(self):
@@ -401,7 +711,7 @@ class StockTrackerApp(ctk.CTk):
         self.quantity_entry = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Cantidad")
         self.quantity_entry.grid(row=3, column=0, padx=20, pady=10)
 
-        self.price_entry = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Precio Compra (USD)")
+        self.price_entry = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Precio Compra ($)")
         self.price_entry.grid(row=4, column=0, padx=20, pady=10, sticky="n")
 
         self.buy_date_entry = ctk.CTkEntry(self.sidebar_frame, placeholder_text="Fecha Compra (DD/MM/AAAA)")
@@ -445,7 +755,7 @@ class StockTrackerApp(ctk.CTk):
         self.symbol_entry.bind("<FocusOut>", self.on_symbol_focus_out)
         self.symbol_entry.bind("<Return>", self.on_symbol_focus_out)
 
-    def on_symbol_focus_out(self, event=None):
+    def on_symbol_focus_out(self, event=None) -> None:
         symbol = self.symbol_entry.get().strip().upper()
         # Prevent re-fetching if we are already dealing with this symbol or a dialog is open
         if symbol and symbol != self.active_search_symbol:
@@ -455,7 +765,7 @@ class StockTrackerApp(ctk.CTk):
             self.active_search_symbol = symbol
             threading.Thread(target=self.fetch_stock_info_sidebar, args=(symbol,), daemon=True).start()
 
-    def fetch_stock_info_sidebar(self, symbol):
+    def fetch_stock_info_sidebar(self, symbol: str) -> None:
         try:
             ticker = yf.Ticker(symbol)
             info = ticker.info
@@ -483,7 +793,7 @@ class StockTrackerApp(ctk.CTk):
             # If fetch fails, try to search for suggestions
             self.search_symbols(symbol)
 
-    def search_symbols(self, query):
+    def search_symbols(self, query: str) -> None:
         try:
             url = f"https://query2.finance.yahoo.com/v1/finance/search?q={query}"
             headers = {'User-Agent': 'Mozilla/5.0'}
@@ -499,7 +809,7 @@ class StockTrackerApp(ctk.CTk):
             if suggestions:
                 self.after(0, lambda: self.show_suggestions(suggestions))
         except Exception as e:
-            print(f"Search failed: {e}")
+            logging.error(f"Search failed: {e}")
 
     def show_suggestions(self, suggestions):
         if self.suggestion_dialog and self.suggestion_dialog.winfo_exists():
@@ -540,11 +850,12 @@ class StockTrackerApp(ctk.CTk):
         # Summary Cards
         self.summary_frame = ctk.CTkFrame(self.main_frame)
         self.summary_frame.grid(row=0, column=0, padx=20, pady=20, sticky="ew")
-        self.summary_frame.grid_columnconfigure((0, 1, 2), weight=1)
+        self.summary_frame.grid_columnconfigure((0, 1, 2, 3), weight=1)
 
-        self.card_total_invested = self.create_summary_card(self.summary_frame, "Total Invertido", "$0.00", 0)
-        self.card_current_value = self.create_summary_card(self.summary_frame, "Valor Actual", "$0.00", 1)
-        self.card_profit_loss = self.create_summary_card(self.summary_frame, "G/P Total", "$0.00 (0.00%)", 2)
+        self.card_total_invested = self.create_summary_card(self.summary_frame, "Total Invertido", "$0,00", 0)
+        self.card_current_value = self.create_summary_card(self.summary_frame, "Valor Actual", "$0,00", 1)
+        self.card_total_usd = self.create_summary_card(self.summary_frame, "Valor Total (USD)", "USD 0,00", 2)
+        self.card_profit_loss = self.create_summary_card(self.summary_frame, "G/P Total", "$0,00 (0,00%)", 3)
 
         # Controls Bar
         self.controls_frame = ctk.CTkFrame(self.main_frame)
@@ -602,23 +913,35 @@ class StockTrackerApp(ctk.CTk):
         )
         self.view_toggle_btn.grid(row=0, column=3, padx=5, pady=5, sticky="e")
 
+        # Export Button
+        self.export_btn = ctk.CTkButton(
+            self.controls_frame, 
+            text="Exportar", 
+            width=80, 
+            height=28,
+            command=self.export_to_excel,
+            fg_color="#336633",
+            hover_color="#447744"
+        )
+        self.export_btn.grid(row=0, column=4, padx=5, pady=5, sticky="e")
+
         # Aggregated Summary Area (Replaces Chart)
         self.agg_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Resumen por Acción", height=150)
         self.agg_frame.grid(row=2, column=0, padx=20, pady=10, sticky="nsew")
-        self.agg_frame.grid_columnconfigure((0, 1, 2, 3, 4), weight=1)
+        self.agg_frame.grid_columnconfigure((0, 1, 2, 3, 4, 5), weight=1)
 
         # Headers for Aggregated Table
-        agg_headers = ["Acción", "Cant. Total", "P. Prom. Compra", "Precio Actual", "Total General"]
+        agg_headers = ["Acción", "Cant. Total", "P. Prom. Compra", "Precio Actual", "Total General", "Total USD"]
         for i, header in enumerate(agg_headers):
             ctk.CTkLabel(self.agg_frame, text=header, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=5)
 
         # Table Area (Scrollable Frame mimicking a table)
         self.table_frame = ctk.CTkScrollableFrame(self.main_frame, label_text="Tus Posiciones")
         self.table_frame.grid(row=3, column=0, padx=20, pady=20, sticky="nsew")
-        self.table_frame.grid_columnconfigure((0, 1, 2, 3, 4, 5, 6, 7, 8, 9), weight=1)
+        self.table_frame.grid_columnconfigure((0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10), weight=1) # Added one more column for BuyDate
 
         # Table Headers
-        headers = ["Símbolo", "Empresa", "Trend (1m)", "Riesgo", "Cant.", "P. Compra", "P. Actual", "Valor", "G/P", "Acciones"]
+        headers = ["Símbolo", "Empresa", "Trend (1m)", "Riesgo", "Cant.", "P. Compra", "Fecha Compra", "P. Actual", "Valor", "G/P", "Acciones"]
         for i, header in enumerate(headers):
             ctk.CTkLabel(self.table_frame, text=header, font=ctk.CTkFont(weight="bold")).grid(row=0, column=i, padx=5, pady=5)
 
@@ -678,21 +1001,29 @@ class StockTrackerApp(ctk.CTk):
         self.quantity_entry.delete(0, 'end')
         self.price_entry.delete(0, 'end')
         self.buy_date_entry.delete(0, 'end')
+        
+        # Auto-focus for rapid entry
+        self.symbol_entry.focus_set()
 
     def delete_row(self, index):
         if messagebox.askyesno("Eliminar", "¿Seguro que deseas eliminar esta posición?"):
-            symbol = self.portfolio.iloc[index]['Symbol']
-            PortfolioDB.delete_symbol(symbol, callback=lambda _: self.after(0, self.save_portfolio))
+            row = self.portfolio.iloc[index]
+            # Use specific ID if available, else standard delete (but now we have duplicates in view!)
+            # The get_portfolio_df now returns 'id'.
+            if 'id' in row:
+                PortfolioDB.delete_position_by_id(row['id'], callback=lambda _: self.after(0, self.save_portfolio))
+            else:
+                # Fallback (should not happen with new schema)
+                symbol = row['Symbol']
+                PortfolioDB.delete_symbol(symbol, callback=lambda _: self.after(0, self.save_portfolio))
             
     def edit_position(self, index):
         row = self.portfolio.iloc[index]
         EditPositionDialog(self, row, lambda q, p, d: self.save_edited_position(index, q, p, d))
         
     def save_edited_position(self, index, quantity, price, date):
-        # Note: Editing ignores date for now in portfolio view (since it's avg), 
-        # but we could update if we wanted. For now just update qty/price.
-        symbol = self.portfolio.iloc[index]['Symbol']
-        PortfolioDB.update_symbol(symbol, quantity, price, callback=lambda _: self.after(0, self.save_portfolio))
+        pos_id = self.portfolio.iloc[index]['id']
+        PortfolioDB.update_position_by_id(pos_id, quantity, price, date, callback=lambda _: self.after(0, self.save_portfolio))
 
     def open_sell_dialog(self, index):
         row = self.portfolio.iloc[index]
@@ -720,8 +1051,7 @@ class StockTrackerApp(ctk.CTk):
         if selection == "Off":
             return
             
-        minutes = int(selection.split(" ")[0])
-        self.refresh_interval_ms = minutes * 60 * 1000
+        self.refresh_interval_ms = config.REFRESH_INTERVAL_MAP.get(selection, 0)
         self.schedule_auto_refresh()
 
     def schedule_auto_refresh(self):
@@ -737,11 +1067,11 @@ class StockTrackerApp(ctk.CTk):
             return
         
         # Cache Check
-        CACHE_DURATION = 60 # seconds
+        CACHE_DURATION = config.CACHE_DURATION_SECONDS
         if not force and self.last_update_time:
             elapsed = (datetime.now() - self.last_update_time).total_seconds()
             if elapsed < CACHE_DURATION:
-                print("Using cached data")
+                logging.info("Using cached data")
                 # Even if cached, we might want to refresh UI if something changed locally
                 self.update_ui()
                 return
@@ -751,8 +1081,24 @@ class StockTrackerApp(ctk.CTk):
         thread = threading.Thread(target=self.fetch_market_data)
         thread.start()
 
-    def fetch_market_data(self):
+    def get_sparkline_path(self, symbol):
+        return os.path.join(self.sparkline_cache_dir, f"{symbol}_spark.png")
+
+    def retry_request(self, func, retries=3, *args, **kwargs):
+        """Retry a function with exponential backoff"""
+        for i in range(retries):
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                if i == retries - 1:
+                    raise e
+                wait = (2 ** i) + random.uniform(0, 1)
+                logging.warning(f"Retrying {func.__name__} in {wait:.2f}s due to {e}")
+                time.sleep(wait)
+
+    def fetch_market_data(self) -> None:
         try:
+
             symbols = self.portfolio["Symbol"].unique().tolist()
             if not symbols:
                 return
@@ -761,6 +1107,7 @@ class StockTrackerApp(ctk.CTk):
             current_prices = {}
             new_sparklines = {}
             new_volatility = {}
+            self.failed_symbols.clear() # Reset failures on new fetch
             
             # Use Agg backend for non-GUI plot generation
             import matplotlib
@@ -775,13 +1122,19 @@ class StockTrackerApp(ctk.CTk):
                     ticker = tickers.tickers[symbol] if len(symbols) > 1 else tickers
                     
                     # Fetch history for Sparklines (1mo for better trend)
-                    hist = ticker.history(period="1mo")
+                    # We employ caching logic here to avoid regenerating sparklines if price hasn't moved significantly
+                    # or if we have a recent valid cache.
+                    
+                    # 1. Fetch History with Retry
+                    hist = self.retry_request(ticker.history, period="1mo")
                     
                     if not hist.empty:
                         # 1. Current Price
-                        current_prices[symbol] = hist["Close"].iloc[-1]
+                        current_price = hist["Close"].iloc[-1]
+                        current_prices[symbol] = current_price
                         
                         # 2. Volatility (Risk) - Std Dev of daily returns
+
                         # We use pct_change() to get returns, then std()
                         if len(hist) > 5:
                             daily_returns = hist["Close"].pct_change().dropna()
@@ -791,34 +1144,53 @@ class StockTrackerApp(ctk.CTk):
                             new_volatility[symbol] = 0
 
                         # 3. Sparkline Generation
-                        # Create a small figure
-                        fig = plt.figure(figsize=(2, 0.5), dpi=80) # Small size
-                        ax = fig.add_subplot(111)
+                        # Check cache validity
+                        cache_path = self.get_sparkline_path(symbol)
+                        last_price = self.sparkline_price_map.get(symbol, 0)
                         
-                        # Plot line
-                        color = 'green' if hist["Close"].iloc[-1] >= hist["Close"].iloc[0] else 'red'
-                        ax.plot(hist.index, hist["Close"], color=color, linewidth=1.5)
+                        # Regenerate if:
+                        # - No cache file
+                        # - Price changed > 0.1% from last generation (significant change)
+                        # - or simple logic: just reuse if file exists and is recent (< 1 hour)?
+                        # Let's use price change + file existence
                         
-                        # Remove axes and margins
-                        ax.axis('off')
-                        plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+                        regenerate = True
+                        if os.path.exists(cache_path):
+                            if abs(current_price - last_price) / (last_price if last_price else 1) < 0.001:
+                                regenerate = False
                         
-                        # Save to buffer
-                        buf = io.BytesIO()
-                        plt.savefig(buf, format='png', transparent=True)
-                        buf.seek(0)
-                        plt.close(fig) # Close to free memory
+                        if regenerate:
+                            # Create a small figure
+                            fig = plt.figure(figsize=(2, 0.5), dpi=80) # Small size
+                            ax = fig.add_subplot(111)
+                            
+                            # Plot line
+                            color = 'green' if hist["Close"].iloc[-1] >= hist["Close"].iloc[0] else 'red'
+                            ax.plot(hist.index, hist["Close"], color=color, linewidth=1.5)
+                            
+                            # Remove axes and margins
+                            ax.axis('off')
+
+                            plt.subplots_adjust(left=0, right=1, top=1, bottom=0)
+                            
+                            # Save to disk cache
+                            plt.savefig(cache_path, format='png', transparent=True)
+                            plt.close(fig) # Close to free memory
+                            
+                            self.sparkline_price_map[symbol] = current_price
                         
-                        # Load into CTkImage via PIL
-                        img_pil = Image.open(buf)
-                        new_sparklines[symbol] = ctk.CTkImage(light_image=img_pil, dark_image=img_pil, size=(100, 25))
+                        # Load from disk
+                        if os.path.exists(cache_path):
+                            img_pil = Image.open(cache_path)
+                            new_sparklines[symbol] = ctk.CTkImage(light_image=img_pil, dark_image=img_pil, size=(100, 25))
                         
                     else:
                         current_prices[symbol] = 0
                         new_volatility[symbol] = 0
                 except Exception as e:
-                    print(f"Failed to fetch/plot {symbol}: {e}")
+                    logging.error(f"Failed to fetch/plot {symbol}: {e}")
                     current_prices[symbol] = 0
+                    self.failed_symbols.add(symbol)
 
             # Store visual data in app state (not DB)
             self.sparklines = new_sparklines
@@ -828,26 +1200,37 @@ class StockTrackerApp(ctk.CTk):
             self.ars_rate = 0
             self.rate_source = ""
             
-            # Try 1: yfinance
+            # Try 1: CryptoYa (USDT as proxy for Blue/CCL) or Binance - PREFERRED
             try:
-                ars_ticker = yf.Ticker("ARS=X")
-                ars_hist = ars_ticker.history(period="1d")
-                if not ars_hist.empty:
-                    self.ars_rate = ars_hist["Close"].iloc[-1]
-                    self.rate_source = "Yahoo"
-            except:
-                pass
+                r = self.retry_request(requests.get, retries=3, url="https://criptoya.com/api/binance/usdt/ars/1.0", timeout=5)
+                data = r.json()
+                # data is like {'ask': 1120.5, 'bid': 1118.0, ...}
+                if 'ask' in data:
+                    self.ars_rate = data['ask']
+                    self.rate_source = "USDT (Binance)"
+            except Exception as e:
+                logging.error(f"Failed to fetch from CryptoYa: {e}")
 
-            # Try 2: DolarAPI (Blue) if Yahoo failed
+            # Try 2: DolarAPI (Blue) if Binance failed
             if self.ars_rate == 0:
                 try:
-                    r = requests.get("https://dolarapi.com/v1/dolares/blue", timeout=5)
+                    r = self.retry_request(requests.get, retries=3, url="https://dolarapi.com/v1/dolares/blue", timeout=5)
                     data = r.json()
                     self.ars_rate = data['venta']
                     self.rate_source = "Blue"
                 except Exception as e:
-                    print(f"Failed to fetch from DolarAPI: {e}")
-                    self.ars_rate = 0
+                    logging.error(f"Failed to fetch from DolarAPI: {e}")
+
+            # Try 3: yfinance if others failed
+            if self.ars_rate == 0:
+                try:
+                    ars_ticker = yf.Ticker("ARS=X")
+                    ars_hist = self.retry_request(ars_ticker.history, period="1d")
+                    if not ars_hist.empty:
+                        self.ars_rate = ars_hist["Close"].iloc[-1]
+                        self.rate_source = "Yahoo"
+                except:
+                    pass
 
             # Update dataframe safely
             self.portfolio["CurrentPrice"] = self.portfolio["Symbol"].map(current_prices).fillna(0)
@@ -859,7 +1242,7 @@ class StockTrackerApp(ctk.CTk):
             self.after(0, self.update_ui_after_fetch)
             
         except Exception as e:
-            print(f"Error fetching data: {e}")
+            logging.error(f"Error fetching data: {e}")
         finally:
             self.after(0, lambda: self.update_button.configure(state="normal", text="Actualizar Datos"))
 
@@ -892,13 +1275,12 @@ class StockTrackerApp(ctk.CTk):
                 price = info.get('currentPrice') or info.get('regularMarketPrice') or info.get('previousClose') or 0
             
             if price > 0:
-                PortfolioDB.update_current_price(symbol, price)
-                # Refresh UI
-                self.after(0, self.update_ui)
+                # We must use a callback to ensure DB is updated before we reload/refresh UI
+                PortfolioDB.update_current_price(symbol, price, callback=lambda _: self.after(0, self.save_portfolio))
         except Exception as e:
-            print(f"Auto-fetch error for {symbol}: {e}")
+            logging.error(f"Auto-fetch error for {symbol}: {e}")
 
-    def update_ui(self):
+    def update_ui(self) -> None:
         # Calculation
         if "CurrentPrice" not in self.portfolio.columns:
             self.portfolio["CurrentPrice"] = 0.0
@@ -906,6 +1288,11 @@ class StockTrackerApp(ctk.CTk):
         self.portfolio["Value"] = self.portfolio["Quantity"] * self.portfolio["CurrentPrice"]
         self.portfolio["Invested"] = self.portfolio["Quantity"] * self.portfolio["BuyPrice"]
         self.portfolio["ProfitLoss"] = self.portfolio["Value"] - self.portfolio["Invested"]
+        
+        # Calculate % for entire portfolio (will be used for filter/sort too)
+        self.portfolio["ProfitPct"] = self.portfolio.apply(
+            lambda x: (x["ProfitLoss"] / x["Invested"] * 100) if x["Invested"] > 0 else 0, axis=1
+        )
 
         # Apply filters and sorting
         display_df = self.apply_filters_and_sort()
@@ -916,11 +1303,21 @@ class StockTrackerApp(ctk.CTk):
         total_pl = display_df["ProfitLoss"].sum() if not display_df.empty else 0
         total_pl_pct = (total_pl / total_invested * 100) if total_invested > 0 else 0
 
+        # Calculate totals from FILTERED data
+        total_invested = display_df["Invested"].sum() if not display_df.empty else 0
+        total_value = display_df["Value"].sum() if not display_df.empty else 0
+        total_pl = display_df["ProfitLoss"].sum() if not display_df.empty else 0
+        total_pl_pct = (total_pl / total_invested * 100) if total_invested > 0 else 0
+
         # Update Cards
-        self.card_total_invested.configure(text=f"${total_invested:,.2f}")
-        self.card_current_value.configure(text=f"${total_value:,.2f}")
+        self.card_total_invested.configure(text=f"${format_currency(total_invested)}")
+        self.card_current_value.configure(text=f"${format_currency(total_value)}")
+        
+        total_usd = total_value / self.ars_rate if hasattr(self, 'ars_rate') and self.ars_rate > 0 else 0
+        self.card_total_usd.configure(text=f"USD {format_currency(total_usd)}")
+
         color = "green" if total_pl >= 0 else "red"
-        self.card_profit_loss.configure(text=f"${total_pl:,.2f} ({total_pl_pct:.2f}%)", text_color=color)
+        self.card_profit_loss.configure(text=f"${format_currency(total_pl)} ({total_pl_pct:.2f}%)", text_color=color)
 
         # Update Table
         # clear existing rows and widget cache
@@ -933,7 +1330,7 @@ class StockTrackerApp(ctk.CTk):
         if self.compact_view:
             headers = ["Símbolo", "Empresa", "Cant.", "P. Actual", "G/P", "Acciones"]
         else:
-            headers = ["Símbolo", "Empresa", "Trend (1m)", "Riesgo", "Cant.", "P. Compra", "P. Actual", "Valor", "G/P", "Acciones"]
+            headers = ["Símbolo", "Empresa", "Trend (1m)", "Riesgo", "Cant.", "P. Compra", "Fecha Compra", "P. Actual", "Valor", "G/P", "Acciones"]
         
         # Clear and recreate headers
         for widget in self.table_frame.winfo_children():
@@ -981,10 +1378,10 @@ class StockTrackerApp(ctk.CTk):
 
                 # --- Column: Risk (Volatility) ---
                 vol_val = self.volatility_map.get(symbol, 0) if hasattr(self, 'volatility_map') else 0
-                if vol_val < 1.5:
+                if vol_val < config.VOLATILITY_LOW:
                     risk_color = "green"
                     risk_char = "●"
-                elif vol_val < 3.0:
+                elif vol_val < config.VOLATILITY_HIGH:
                     risk_color = "yellow"
                     risk_char = "●"
                 else:
@@ -1004,32 +1401,57 @@ class StockTrackerApp(ctk.CTk):
             
             if not self.compact_view:
                 # --- Column: Buy Price ---
-                lbl_buy = ctk.CTkLabel(self.table_frame, text=f"${row['BuyPrice']:.2f}", text_color="white")
+                lbl_buy = ctk.CTkLabel(self.table_frame, text=f"${format_currency(row['BuyPrice'])}", text_color="white")
                 lbl_buy.grid(row=r, column=col, padx=5, pady=2)
                 self.row_widgets[index].append(lbl_buy)
                 col += 1
 
+                # --- Column: Buy Date (NEW) ---
+                lbl_buy_date = ctk.CTkLabel(self.table_frame, text=str(row.get('BuyDate', '-')), text_color="white")
+                lbl_buy_date.grid(row=r, column=col, padx=5, pady=2)
+                self.row_widgets[index].append(lbl_buy_date)
+                col += 1
+
             # --- Column: Current Price ---
-            lbl_curr = ctk.CTkLabel(self.table_frame, text=f"${row['CurrentPrice']:.2f}", text_color="white")
+            price_text = f"${format_currency(row['CurrentPrice'])}"
+            price_color = "white"
+            if symbol in self.failed_symbols:
+                price_text = "⚠️ Error"
+                price_color = "gray"
+                
+            lbl_curr = ctk.CTkLabel(self.table_frame, text=price_text, text_color=price_color)
             lbl_curr.grid(row=r, column=col, padx=5, pady=2)
             self.row_widgets[index].append(lbl_curr)
             col += 1
 
             if not self.compact_view:
                 # --- Column: Value ---
-                lbl_val = ctk.CTkLabel(self.table_frame, text=f"${row['Value']:.2f}", text_color="white", font=ctk.CTkFont(weight="bold"))
+                lbl_val = ctk.CTkLabel(self.table_frame, text=f"${format_currency(row['Value'])}", text_color="white", font=ctk.CTkFont(weight="bold"))
                 lbl_val.grid(row=r, column=col, padx=5, pady=2)
                 self.row_widgets[index].append(lbl_val)
                 col += 1
 
             # --- Column: Profit/Loss ---
-            lbl_pl = ctk.CTkLabel(self.table_frame, text=f"${row['ProfitLoss']:.2f}", text_color=pl_color, font=ctk.CTkFont(weight="bold"))
+            pct_text = f"({row['ProfitPct']:.2f}%)"
+            lbl_pl = ctk.CTkLabel(self.table_frame, text=f"${format_currency(row['ProfitLoss'])} {pct_text}", text_color=pl_color, font=ctk.CTkFont(weight="bold"))
             lbl_pl.grid(row=r, column=col, padx=5, pady=2)
             self.row_widgets[index].append(lbl_pl)
             col += 1
+            
+            # Only add tooltips if we added the Risk column (length check)
+            if not self.compact_view and len(self.row_widgets[index]) > 3: 
+                 # Risk is at index 3: [Sym, Comp, Spark, Risk, ...]
+                 risk_widget = self.row_widgets[index][3]
+                 
+                 risk_msg = f"Riesgo Bajo (<{config.VOLATILITY_LOW}%)"
+                 if "yellow" in str(risk_widget.cget("text_color")): risk_msg = f"Riesgo Medio ({config.VOLATILITY_LOW}% - {config.VOLATILITY_HIGH}%)"
+                 if "red" in str(risk_widget.cget("text_color")): risk_msg = f"Riesgo Alto (>{config.VOLATILITY_HIGH}%)"
+                 
+                 if "●" in risk_widget.cget("text"):
+                     ToolTip(risk_widget, risk_msg)
 
             # --- Column: Actions ---
-            btn_frame = ctk.CTkFrame(self.table_frame, fg_color="transparent")
+            btn_frame = ctk.CTkFrame(self.table_frame, fg_color="transparent", width=100)
             btn_frame.grid(row=r, column=col, padx=5, pady=2)
             
             # Edit
@@ -1120,7 +1542,9 @@ class StockTrackerApp(ctk.CTk):
         
         # Apply sorting
         if self.current_sort == 'Ganancia %':
-            df['ProfitPct'] = (df['ProfitLoss'] / df['Invested'] * 100)
+            # ProfitPct is already calculated in update_ui, but if called from elsewhere make sure it exists
+            if 'ProfitPct' not in df.columns:
+                 df['ProfitPct'] = df.apply(lambda x: (x['ProfitLoss'] / x['Invested'] * 100) if x['Invested'] > 0 else 0, axis=1)
             df = df.sort_values('ProfitPct', ascending=False)
         elif self.current_sort == 'Valor':
             df = df.sort_values('Value', ascending=False)
@@ -1153,11 +1577,45 @@ class StockTrackerApp(ctk.CTk):
         # Render rows
         for index, row in grouped.iterrows():
             r = index + 1
+            total_val_usd = row['TotalValue'] / self.ars_rate if hasattr(self, 'ars_rate') and self.ars_rate > 0 else 0
+            
             ctk.CTkLabel(self.agg_frame, text=row['Symbol']).grid(row=r, column=0, padx=5, pady=2)
             ctk.CTkLabel(self.agg_frame, text=f"{row['TotalQuantity']:.2f}").grid(row=r, column=1, padx=5, pady=2)
-            ctk.CTkLabel(self.agg_frame, text=f"${row['WeightedAvgPrice']:.2f}").grid(row=r, column=2, padx=5, pady=2)
-            ctk.CTkLabel(self.agg_frame, text=f"${row['CurrentPrice']:.2f}").grid(row=r, column=3, padx=5, pady=2)
-            ctk.CTkLabel(self.agg_frame, text=f"${row['TotalValue']:.2f}").grid(row=r, column=4, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"${format_currency(row['WeightedAvgPrice'])}").grid(row=r, column=2, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"${format_currency(row['CurrentPrice'])}").grid(row=r, column=3, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"${format_currency(row['TotalValue'])}").grid(row=r, column=4, padx=5, pady=2)
+            ctk.CTkLabel(self.agg_frame, text=f"USD {format_currency(total_val_usd)}").grid(row=r, column=5, padx=5, pady=2)
+
+    def export_to_excel(self):
+        if self.portfolio.empty:
+            messagebox.showinfo("Exportar", "No hay datos para exportar")
+            return
+            
+        file_path = filedialog.asksaveasfilename(defaultextension=".xlsx",
+                                                   filetypes=[("Excel files", "*.xlsx"), ("All files", "*.*")])
+        if file_path:
+            try:
+                # Create a clean export version
+                export_df = self.portfolio.copy()
+                
+                # Ensure calculated columns exist
+                if "Value" not in export_df.columns:
+                     export_df["Value"] = export_df["Quantity"] * export_df["CurrentPrice"]
+                if "Invested" not in export_df.columns:
+                     export_df["Invested"] = export_df["Quantity"] * export_df["BuyPrice"]
+                if "ProfitLoss" not in export_df.columns:
+                     export_df["ProfitLoss"] = export_df["Value"] - export_df["Invested"]
+                if "ProfitPct" not in export_df.columns:
+                     export_df['ProfitPct'] = export_df.apply(lambda x: (x['ProfitLoss'] / x['Invested'] * 100) if x['Invested'] > 0 else 0, axis=1)
+
+                # Select and rename columns for clarity
+                export_df = export_df[['Symbol', 'Company', 'Quantity', 'BuyPrice', 'CurrentPrice', 'Value', 'Invested', 'ProfitLoss', 'ProfitPct']]
+                export_df.columns = ['Símbolo', 'Empresa', 'Cantidad', 'Precio Compra', 'Precio Actual', 'Valor Total', 'Invertido', 'Ganancia/Pérdida ($)', 'Ganancia/Pérdida (%)']
+                
+                export_df.to_excel(file_path, index=False)
+                messagebox.showinfo("Exportar", "Datos exportados correctamente")
+            except Exception as e:
+                messagebox.showerror("Error", f"Error al exportar: {e}")
 
 if __name__ == "__main__":
     app = StockTrackerApp()
