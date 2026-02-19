@@ -1005,28 +1005,17 @@ class StockTrackerApp(ctk.CTk):
         # Auto-focus for rapid entry
         self.symbol_entry.focus_set()
 
-    def delete_row(self, index):
+    def delete_row(self, db_id):
         if messagebox.askyesno("Eliminar", "¿Seguro que deseas eliminar esta posición?"):
-            row = self.portfolio.iloc[index]
-            # Use specific ID if available, else standard delete (but now we have duplicates in view!)
-            # The get_portfolio_df now returns 'id'.
-            if 'id' in row:
-                PortfolioDB.delete_position_by_id(row['id'], callback=lambda _: self.after(0, self.save_portfolio))
-            else:
-                # Fallback (should not happen with new schema)
-                symbol = row['Symbol']
-                PortfolioDB.delete_symbol(symbol, callback=lambda _: self.after(0, self.save_portfolio))
+            PortfolioDB.delete_position_by_id(db_id, callback=lambda _: self.after(0, self.save_portfolio))
             
-    def edit_position(self, index):
-        row = self.portfolio.iloc[index]
-        EditPositionDialog(self, row, lambda q, p, d: self.save_edited_position(index, q, p, d))
+    def edit_position(self, row):
+        EditPositionDialog(self, row, lambda q, p, d: self.save_edited_position(row['id'], q, p, d))
         
-    def save_edited_position(self, index, quantity, price, date):
-        pos_id = self.portfolio.iloc[index]['id']
+    def save_edited_position(self, pos_id, quantity, price, date):
         PortfolioDB.update_position_by_id(pos_id, quantity, price, date, callback=lambda _: self.after(0, self.save_portfolio))
 
-    def open_sell_dialog(self, index):
-        row = self.portfolio.iloc[index]
+    def open_sell_dialog(self, row):
         # Current price fallback
         price = row['CurrentPrice'] if row['CurrentPrice'] > 0 else row['BuyPrice']
         SellDialog(self, row['Symbol'], row['Quantity'], price, 
@@ -1456,13 +1445,13 @@ class StockTrackerApp(ctk.CTk):
             
             # Edit
             ctk.CTkButton(btn_frame, text="✎", width=30, height=20, fg_color="#444", 
-                          command=lambda i=index: self.edit_position(i)).pack(side="left", padx=2)
+                          command=lambda r=row: self.edit_position(r)).pack(side="left", padx=2)
             # Sell
             ctk.CTkButton(btn_frame, text="$", width=30, height=20, fg_color="orange", hover_color="darkorange",
-                          command=lambda i=index: self.open_sell_dialog(i)).pack(side="left", padx=2)
+                          command=lambda r=row: self.open_sell_dialog(r)).pack(side="left", padx=2)
             # Delete
             ctk.CTkButton(btn_frame, text="X", width=30, height=20, fg_color="#600", hover_color="#800", 
-                          command=lambda i=index: self.delete_row(i)).pack(side="left", padx=2)          
+                          command=lambda i=row['id']: self.delete_row(i)).pack(side="left", padx=2)          
         
         # Update Summary Table
         self.update_summary_table()
