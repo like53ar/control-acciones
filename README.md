@@ -1,33 +1,30 @@
-# 📈 Sistema de Control y Gestión de Inversiones (Trading Bot)
+# 🧘‍♂️ Portafolio Zen - Control de Inversiones
 
-Este proyecto es una plataforma integral diseñada para la gestión, análisis y automatización de carteras de inversión. Combina la potencia analítica de **Python** en el backend con la interactividad y dinamismo de **Angular** en el frontend.
+Sistema de control y gestión de inversiones (Acciones y Cedears). Evolucionado desde un script básico hacia una **aplicación web moderna, asíncrona y de pila completa (Full-Stack)** diseñada de manera exclusiva para uso privado.
 
-## 🚀 Propósito del Proyecto
-El objetivo principal es proporcionar una herramienta robusta para inversores con perfiles agresivos que buscan centralizar su operativa en el mercado de capitales (Acciones, Cedears y Criptomonedas), automatizando el seguimiento de activos y optimizando la toma de decisiones mediante algoritmos de rebalanceo.
+## 🚀 Arquitectura y Tecnologías
+Esta plataforma abandonó su dependencia en Python a favor de un ecosistema **100% JavaScript / TypeScript**, asegurando velocidad, estabilidad web y evitando cruces de procesos.
 
-## 🛠️ Tecnologías Utilizadas
-* **Backend:** Python (procesamiento de datos financieros y lógica de trading).
-* **Frontend:** Angular (interfaz de usuario moderna y responsiva).
-* **Integración:** Conexión con APIs de mercado para datos en tiempo real.
-* **Gestión de Datos:** Automatización de reportes y visualización de rendimiento.
+*   **Backend Minimalista (Node.js)**: Utiliza `Express` para el ruteo, `SQLite3` para la persistencia de datos local, `yahoo-finance2` para el autocompletado de empresas y consultas a APIs públicas de mercado.
+*   **Frontend Unificado (Angular)**: Single Page Application (SPA) que elimina la necesidad de recargas de pantalla (cero parpadeos o renderizados forzados).  
+*   **Estética (Tailwind CSS)**: Interfaz de usuario "Zen Dark", diseñada con colores marinos Premium, animaciones fluidas, flexbox asimétrico y tipografía limpia.
 
 ## ✨ Funcionalidades Clave
-* **Dashboard de Portafolio:** Visualización clara de la distribución de activos y rendimiento histórico.
-* **Trading Bot:** Módulo de automatización para la ejecución de estrategias basadas en parámetros técnicos.
-* **Análisis de Riesgo:** Herramientas para el cálculo de volatilidad y exposición de la cartera.
-* **Gestión Administrativa:** Consola integrada para el registro de operaciones y auditoría de movimientos.
 
-## 📊 Arquitectura
-El sistema está diseñado bajo una arquitectura desacoplada:
-1.  **Capa de Datos:** Scripts en Python que consumen y limpian datos financieros.
-2.  **API:** Provee los endpoints necesarios para que el frontend acceda a la información procesada.
-3.  **UI de Usuario:** Aplicación en Angular que permite al inversor interactuar con su portafolio de manera intuitiva.
+*   **Layout Adaptativo**: Disposición dividida que permite visualizar, en una sola pantalla, el formulario de carga interactiva, tarjetas de ganancia global, tabla histórica y resúmenes laterales.
+*   **Autocompletado Inteligente**: Al escribir el Ticker (Código) de la acción, el backend Node se comunica con Yahoo Finance para precargar el nombre oficial de la empresa y bloquear errores tipográficos.
+*   **Historial de Ventas**: Sistema robusto de persistencia que diferencia entre eliminar un registro falso por error y registrar la "Venta Real" de un activo (cambio de status de OPEN a CLOSED guardando precio y fecha de salida).
+*   **Oráculo Cripto (Binance)**: Conector en tiempo real al servidor de Binance para mostrar la conversión dinámica del par **USDT/ARS** (Dólar Cripto).
+*   **Resumen Consolidado**: Cuadro lateral que agrupa matemáticamente las inversiones (Ej. múltiples compras de una misma empresa convergen en un monto de capital único valorizado).
 
-## 🛠️ Instalación y Configuración
-*(Aquí podés completar con los pasos técnicos básicos)*
-1. Clonar el repositorio: `git clone https://github.com/like53ar/control-acciones.git`
-2. Instalar dependencias de Python: `pip install -r requirements.txt`
-3. Instalar dependencias de Angular: `npm install`
+## 🔒 Privacidad y Seguridad
+La aplicación corre íntegramente en `localhost`. La base de datos financiera central (`portfolio.db`) está auditada mediante políticas estrictas de `.gitignore`. **Los datos de inversión nunca escapan hacia GitHub ni la nube pública**.
+
+## 🛠️ Instalación y Uso Local
+Este software corre mediante un ejecutador maestro para ecosistemas Windows.
+1. Clonar el repositorio.
+2. Hacer doble clic sobre `launcher.vbs`.
+3. El lanzador matará instancias conflictivas anteriores, silenciará las consolas de Node/Angular, levantará una "Splash Screen" (pantalla de carga de alta gama escrita en HTA), y abrirá el navegador automático en `http://localhost:4200`.
 
 ---
-Desarrollado con enfoque en la eficiencia administrativa y la precisión financiera.
+*Desarrollado y refinado para la máxima concentración financiera.*
