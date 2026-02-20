@@ -1,5 +1,17 @@
+# Node.js
+node_modules/
+npm-debug.log
+yarn-error.log
+
+# Base de Datos y Caché Python (del cliente viejo)
+*.db
 __pycache__/
-*.log
 *.pyc
-.venv/
 .env
+
+# Angular (Frontend build files)
+dist/
+tmp/
+out-tsc/
+bazel-out/
+.angular/

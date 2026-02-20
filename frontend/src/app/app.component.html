@@ -1,0 +1,136 @@
+<div class="min-h-screen bg-zen-light flex flex-col justify-start py-12 px-4 sm:px-6 lg:px-8 font-sans">
+  <div class="max-w-5xl w-full mx-auto space-y-12">
+    <!-- Header -->
+    <header class="text-center space-y-3 mt-8">
+      <h1 class="text-5xl font-light tracking-tight text-zen-text">Portafolio Zen</h1>
+      <p class="text-zen-dark text-xs tracking-[0.2em] uppercase">Tranquilidad &amp; Control</p>
+    </header>
+
+    <!-- Loading State -->
+    <div *ngIf="loading" class="flex justify-center py-32">
+      <div class="flex space-x-2 opacity-50">
+        <div class="h-2 w-2 bg-zen-dark rounded-full animate-pulse"></div>
+        <div class="h-2 w-2 bg-zen-dark rounded-full animate-pulse" style="animation-delay: 150ms;"></div>
+        <div class="h-2 w-2 bg-zen-dark rounded-full animate-pulse" style="animation-delay: 300ms;"></div>
+      </div>
+    </div>
+
+    <!-- Data View -->
+    <ng-container *ngIf="!loading && portfolioData">
+
+      <!-- Formulario de Carga Zen -->
+      <div class="bg-white rounded-3xl p-6 shadow-sm border border-zen-medium/30 mb-8 mt-2 transition-all">
+        <h2 class="text-xs font-medium text-zen-dark uppercase tracking-widest mb-4">Añadir Activo</h2>
+        <form (ngSubmit)="addItem()" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-zen-dark mb-2">Ticker / Símbolo</label>
+            <input type="text" name="symbol" [(ngModel)]="newItem.symbol" placeholder="Ej. AAPL"
+              class="w-full bg-zen-light border-0 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-zen-dark outline-none transition-shadow text-zen-text uppercase"
+              required autocomplete="off">
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-zen-dark mb-2">Cantidad</label>
+            <input type="number" name="quantity" [(ngModel)]="newItem.quantity" placeholder="0" step="any"
+              class="w-full bg-zen-light border-0 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-zen-dark outline-none transition-shadow text-zen-text"
+              required>
+          </div>
+          <div>
+            <label class="block text-[10px] uppercase tracking-wider text-zen-dark mb-2">Precio Compra ($)</label>
+            <input type="number" name="buy_price" [(ngModel)]="newItem.buy_price" placeholder="0.00" step="any"
+              class="w-full bg-zen-light border-0 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-zen-dark outline-none transition-shadow text-zen-text"
+              required>
+          </div>
+          <div>
+            <button type="submit" [disabled]="submitting"
+              class="w-full bg-zen-text text-white rounded-xl px-4 py-3 text-sm font-medium hover:bg-black transition-colors disabled:opacity-50">
+              {{ submitting ? 'Guardando...' : 'Guardar Posición' }}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <!-- Summary Cards -->
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div
+          class="bg-white p-8 rounded-3xl shadow-sm border border-zen-medium/30 flex flex-col items-center justify-center hover:shadow-md transition-shadow duration-300">
+          <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Total Invertido</p>
+          <p class="text-3xl font-light text-zen-text">{{ portfolioData.summary.total_invested | currency }}</p>
+        </div>
+        <div
+          class="bg-white p-8 rounded-3xl shadow-sm border border-zen-medium/30 flex flex-col items-center justify-center hover:shadow-md transition-shadow duration-300">
+          <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Valor Actual</p>
+          <p class="text-3xl font-light text-zen-text">{{ portfolioData.summary.total_value | currency }}</p>
+        </div>
+        <div
+          class="bg-white p-8 rounded-3xl shadow-sm border border-zen-medium/30 flex flex-col items-center justify-center hover:shadow-md transition-shadow duration-300 relative overflow-hidden">
+          <div class="absolute inset-0 bg-green-50/30" *ngIf="portfolioData.summary.total_gain >= 0"></div>
+          <div class="absolute inset-0 bg-red-50/30" *ngIf="portfolioData.summary.total_gain < 0"></div>
+          <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3 relative z-10">Rendimiento Total</p>
+          <p class="text-3xl font-light relative z-10"
+            [ngClass]="{'text-green-600': portfolioData.summary.total_gain >= 0, 'text-red-400': portfolioData.summary.total_gain < 0}">
+            {{ portfolioData.summary.total_gain >= 0 ? '+' : '' }}{{ portfolioData.summary.total_gain | currency }}
+          </p>
+        </div>
+      </div>
+
+      <!-- Assets List -->
+      <div class="bg-white rounded-3xl shadow-sm border border-zen-medium/30 overflow-hidden mt-12">
+        <div class="px-10 py-8">
+          <h2 class="text-sm font-medium text-zen-dark uppercase tracking-widest mb-8">Mis Activos</h2>
+          <div class="overflow-x-auto">
+            <table class="w-full text-left">
+              <thead>
+                <tr class="text-[10px] text-zen-dark/70 uppercase tracking-wider border-b border-zen-medium/20">
+                  <th class="pb-4 font-normal pl-2">Activo</th>
+                  <th class="pb-4 font-normal">Cantidad</th>
+                  <th class="pb-4 font-normal">Precio Compra</th>
+                  <th class="pb-4 font-normal">Precio Actual</th>
+                  <th class="pb-4 font-normal text-right pr-2">Ganancia</th>
+                  <th class="pb-4 font-normal"></th>
+                </tr>
+              </thead>
+              <tbody class="text-sm">
+                <tr *ngFor="let item of portfolioData.data"
+                  class="group border-b border-zen-medium/10 last:border-0 hover:bg-zen-light/50 transition-colors duration-300">
+                  <td class="py-5 pl-2">
+                    <p class="font-medium text-zen-text group-hover:text-black transition-colors">{{ item.Symbol }}</p>
+                    <p class="text-[11px] text-zen-dark mt-1">{{ item.Company }}</p>
+                  </td>
+                  <td class="py-5 text-zen-text/80">{{ item.Quantity }}</td>
+                  <td class="py-5 text-zen-dark">{{ item.BuyPrice | currency }}</td>
+                  <td class="py-5 text-zen-text font-medium">{{ item.CurrentPrice | currency }}</td>
+                  <td class="py-5 text-right pr-4 font-medium"
+                    [ngClass]="{'text-green-500': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
+                    {{ item.Gain >= 0 ? '+' : '' }}{{ item.Gain | currency }}
+                  </td>
+                  <td class="py-5 text-right pr-2">
+                    <button (click)="deleteItem(item.id)"
+                      class="text-zen-dark opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all p-2 rounded-full hover:bg-red-50"
+                      title="Vender/Anotar Cierre">
+                      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                        </path>
+                      </svg>
+                    </button>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div *ngIf="portfolioData.data.length === 0" class="text-center py-16 text-zen-dark">
+            <div class="w-16 h-16 rounded-full bg-zen-light flex items-center justify-center mx-auto mb-4">
+              <svg class="w-6 h-6 text-zen-dark/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 12H4M12 20V4"></path>
+              </svg>
+            </div>
+            <p class="font-light tracking-wide">El portafolio está vacío.</p>
+          </div>
+        </div>
+      </div>
+    </ng-container>
+
+  </div>
+</div>
