@@ -1,294 +1,331 @@
 <div class="min-h-screen bg-zen-light flex flex-col justify-start py-12 px-4 sm:px-6 lg:px-8 font-sans">
-  <div class="max-w-5xl w-full mx-auto space-y-12">
-    <!-- Header -->
-    <header class="text-center space-y-3 mt-8">
-      <h1 class="text-5xl font-light tracking-tight text-zen-darkest">Portafolio Zen</h1>
-      <p class="text-zen-accent text-xs tracking-[0.2em] uppercase">Tranquilidad &amp; Control</p>
-    </header>
+  <!-- Header -->
+  <header class="text-center space-y-3 mt-8 mb-10 w-full max-w-7xl mx-auto">
+    <h1 class="text-5xl font-light tracking-tight text-zen-darkest">Portafolio Zen</h1>
+    <p class="text-zen-accent text-xs tracking-[0.2em] uppercase">Tranquilidad &amp; Control</p>
+  </header>
 
-    <!-- Loading State -->
-    <div *ngIf="loading" class="flex justify-center py-32">
-      <div class="flex space-x-2 opacity-50">
-        <div class="h-2 w-2 bg-zen-dark rounded-full animate-pulse"></div>
-        <div class="h-2 w-2 bg-zen-dark rounded-full animate-pulse" style="animation-delay: 150ms;"></div>
-        <div class="h-2 w-2 bg-zen-dark rounded-full animate-pulse" style="animation-delay: 300ms;"></div>
-      </div>
-    </div>
+  <div class="max-w-7xl w-full mx-auto flex flex-col gap-12 items-center">
 
     <!-- Data View -->
     <ng-container *ngIf="!loading && portfolioData">
 
-      <!-- Formulario de Carga Zen -->
-      <div
-        class="bg-[#1e293b] rounded-[2rem] p-8 mb-8 mt-4 shadow-2xl border border-zen-medium/20 transition-all relative overflow-hidden">
+      <!-- Top Section (Form + Summary) -->
+      <div class="w-full max-w-7xl flex flex-col lg:flex-row gap-8 items-start">
 
-        <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+        <!-- Left Sidebar (Exchange Rate) -->
+        <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 z-20">
+          <div
+            class="bg-[#1e293b] rounded-[2rem] p-6 shadow-2xl border border-zen-medium/20 relative overflow-hidden sticky top-8">
+            <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+            <div class="relative z-10">
+              <h2
+                class="text-[10px] font-bold text-[#f8fafc] uppercase tracking-[0.2em] opacity-90 flex items-center mb-6">
+                <span class="text-zen-accent mr-2 text-sm">✦</span> Tipo de Cambio
+              </h2>
 
-        <div class="flex items-center justify-between mb-8 relative z-10">
-          <h2 class="text-[10px] font-bold text-zen-darkest uppercase tracking-[0.3em] opacity-90"><span
-              class="text-zen-accent mr-2">✦</span> Añadir Nueva Inversión</h2>
-        </div>
-
-        <form (ngSubmit)="addItem()" class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end relative z-10">
-
-          <!-- Ticker -->
-          <div class="col-span-1 md:col-span-2">
-            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
-              translate="no">CÓDIGO</label>
-            <input type="text" name="symbol" [(ngModel)]="newItem.symbol" (ngModelChange)="onSymbolChange($event)"
-              placeholder="MSFT"
-              class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all uppercase shadow-inner"
-              required autocomplete="off">
-          </div>
-
-          <!-- Empresa -->
-          <div class="col-span-1 md:col-span-4 relative group">
-            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
-              translate="no">EMPRESA
-              <span *ngIf="loadingCompany"
-                class="ml-2 text-[10px] text-zen-accent animate-pulse font-normal lowercase tracking-normal">buscando...</span>
-            </label>
-            <input type="text" name="company" [ngModel]="newItem.company" placeholder="Nombre automático..."
-              class="w-full bg-zen-lightest/20 text-zen-darkest placeholder-zen-dark/20 border border-zen-medium/10 rounded-2xl px-5 py-4 text-sm outline-none cursor-not-allowed italic opacity-80"
-              readonly>
-          </div>
-
-          <!-- Cantidad -->
-          <div class="col-span-1 md:col-span-2">
-            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
-              translate="no">CANTIDAD</label>
-            <input type="number" name="quantity" [(ngModel)]="newItem.quantity" placeholder="0" step="any"
-              class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
-              required>
-          </div>
-
-          <!-- Precio -->
-          <div class="col-span-1 md:col-span-2">
-            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
-              translate="no">PRECIO ($)</label>
-            <input type="number" name="buy_price" [(ngModel)]="newItem.buy_price" placeholder="0.00" step="any"
-              class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
-              required>
-          </div>
-
-          <!-- Fecha -->
-          <div class="col-span-1 md:col-span-2">
-            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
-              translate="no">FECHA</label>
-            <input type="date" name="buy_date" [(ngModel)]="newItem.buy_date"
-              class="w-full bg-zen-lightest/50 text-zen-darkest border border-zen-medium/30 rounded-2xl px-4 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
-              required>
-          </div>
-
-          <!-- Botón -->
-          <div class="col-span-1 md:col-span-12 mt-4">
-            <button type="submit" [disabled]="submitting || loadingCompany"
-              class="w-full bg-zen-accent text-[#0f172a] rounded-2xl px-4 py-4 text-sm uppercase tracking-widest font-bold hover:bg-[#38bdf8] hover:shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
-              {{ submitting ? 'Guardando Posición en Base de Datos...' : 'Confirmar Compra' }}
-            </button>
-          </div>
-
-        </form>
-      </div>
-
-      <!-- Summary Cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div
-          class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300">
-          <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Total Invertido</p>
-          <p class="text-3xl font-light text-zen-darkest">{{ portfolioData.summary.total_invested | currency }}</p>
-        </div>
-        <div
-          class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300">
-          <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Valor Actual</p>
-          <p class="text-3xl font-light text-zen-darkest">{{ portfolioData.summary.total_value | currency }}</p>
-        </div>
-        <div
-          class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300 relative overflow-hidden">
-          <div class="absolute inset-0 bg-green-500/10" *ngIf="portfolioData.summary.total_gain >= 0"></div>
-          <div class="absolute inset-0 bg-red-500/10" *ngIf="portfolioData.summary.total_gain < 0"></div>
-          <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3 relative z-10">Rendimiento Total</p>
-          <p class="text-3xl font-light relative z-10"
-            [ngClass]="{'text-green-400': portfolioData.summary.total_gain >= 0, 'text-red-400': portfolioData.summary.total_gain < 0}">
-            {{ portfolioData.summary.total_gain >= 0 ? '+' : '' }}{{ portfolioData.summary.total_gain | currency }}
-          </p>
-        </div>
-      </div>
-
-      <!-- Assets List -->
-      <div class="bg-zen-lightest rounded-3xl shadow-lg border border-zen-medium overflow-hidden mt-12">
-        <div class="px-10 py-8">
-          <h2 class="text-sm font-medium text-zen-dark uppercase tracking-widest mb-8">Mis Activos</h2>
-          <div class="overflow-x-auto">
-            <table class="w-full text-left">
-              <thead>
-                <tr class="text-[10px] text-zen-dark/70 uppercase tracking-wider border-b border-zen-medium">
-                  <th class="pb-4 font-normal pl-2">Activo</th>
-                  <th class="pb-4 font-normal">Cantidad</th>
-                  <th class="pb-4 font-normal">Precio Compra</th>
-                  <th class="pb-4 font-normal">Precio Actual</th>
-                  <th class="pb-4 font-normal text-right pr-2">Ganancia</th>
-                  <th class="pb-4 font-normal"></th>
-                </tr>
-              </thead>
-              <tbody class="text-sm">
-                <tr *ngFor="let item of portfolioData.data"
-                  class="group border-b border-zen-medium/50 last:border-0 hover:bg-zen-light transition-colors duration-300">
-                  <td class="py-5 pl-2">
-                    <p class="font-medium text-zen-darkest transition-colors text-sm uppercase">{{ item.Symbol }}</p>
-                    <p class="text-[11px] text-zen-dark mt-1">{{ item.Company }}</p>
-                    <div class="mt-2 flex items-center" *ngIf="item.BuyDate">
-                      <span
-                        class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-zen-accent/10 border border-zen-accent/20">
-                        <svg class="w-3 h-3 text-zen-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span class="text-[9px] text-zen-accent font-semibold tracking-widest">{{ item.BuyDate }}</span>
-                      </span>
-                    </div>
-                  </td>
-                  <td class="py-5 text-zen-text">{{ item.Quantity }}</td>
-                  <td class="py-5 text-zen-text/70">{{ item.BuyPrice | currency }}</td>
-                  <td class="py-5 text-zen-darkest font-medium">{{ item.CurrentPrice | currency }}</td>
-                  <td class="py-5 text-right pr-4 font-medium"
-                    [ngClass]="{'text-green-400': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
-                    {{ item.Gain >= 0 ? '+' : '' }}{{ item.Gain | currency }}
-                  </td>
-                  <td class="py-5 text-right pr-2">
-                    <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
-                      <!-- Botón Vender -->
-                      <button (click)="confirmSell(item)"
-                        class="text-zen-accent hover:text-blue-400 p-2 rounded-full hover:bg-zen-accent/10 transition-all"
-                        title="Vender Posición">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
-                          </path>
-                        </svg>
-                      </button>
-                      <!-- Botón Eliminar Físicamente -->
-                      <button (click)="confirmDelete(item)"
-                        class="text-zen-dark hover:text-red-400 p-2 rounded-full hover:bg-red-500/20 transition-all"
-                        title="Eliminar Registro (Error)">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                          xmlns="http://www.w3.org/2000/svg">
-                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                            d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
-                          </path>
-                        </svg>
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-          <div *ngIf="portfolioData.data.length === 0" class="text-center py-16 text-zen-dark">
-            <div class="w-16 h-16 rounded-full bg-zen-light flex items-center justify-center mx-auto mb-4">
-              <svg class="w-6 h-6 text-zen-dark/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 12H4M12 20V4"></path>
-              </svg>
+              <div class="space-y-1">
+                <p class="text-[10px] text-zen-dark uppercase tracking-widest font-medium" translate="no">USDT / ARS
+                  (Binance)</p>
+                <div *ngIf="loadingExchange" class="h-10 w-24 bg-zen-light/10 animate-pulse rounded-xl mt-2"></div>
+                <p *ngIf="!loadingExchange && exchangeRate" class="text-3xl font-light text-white tracking-tight mt-1">
+                  {{ exchangeRate | currency:'$':'symbol':'1.2-2' }}
+                </p>
+                <p *ngIf="!loadingExchange && !exchangeRate" class="text-xs text-red-400 mt-2">No disponible</p>
+              </div>
             </div>
-            <p class="font-light tracking-wide">El portafolio está vacío.</p>
+          </div>
+        </aside>
+
+        <!-- Right Content (Form + Summary) -->
+        <div class="w-full lg:w-3/4 xl:w-4/5 space-y-12">
+
+          <!-- Formulario de Carga Zen -->
+          <div
+            class="bg-[#1e293b] rounded-[2rem] p-8 mb-8 mt-4 shadow-2xl border border-zen-medium/20 transition-all relative overflow-hidden">
+
+            <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+
+            <div class="flex items-center justify-between mb-8 relative z-10">
+              <h2 class="text-[10px] font-bold text-zen-darkest uppercase tracking-[0.3em] opacity-90"><span
+                  class="text-zen-accent mr-2">✦</span> Añadir Nueva Inversión</h2>
+            </div>
+
+            <form (ngSubmit)="addItem()" class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end relative z-10">
+
+              <!-- Ticker -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                  translate="no">CÓDIGO</label>
+                <input type="text" name="symbol" [(ngModel)]="newItem.symbol" (ngModelChange)="onSymbolChange($event)"
+                  placeholder="MSFT"
+                  class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all uppercase shadow-inner"
+                  required autocomplete="off">
+              </div>
+
+              <!-- Empresa -->
+              <div class="col-span-1 md:col-span-4 relative group">
+                <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                  translate="no">EMPRESA
+                  <span *ngIf="loadingCompany"
+                    class="ml-2 text-[10px] text-zen-accent animate-pulse font-normal lowercase tracking-normal">buscando...</span>
+                </label>
+                <input type="text" name="company" [ngModel]="newItem.company" placeholder="Nombre automático..."
+                  class="w-full bg-zen-lightest/20 text-zen-darkest placeholder-zen-dark/20 border border-zen-medium/10 rounded-2xl px-5 py-4 text-sm outline-none cursor-not-allowed italic opacity-80"
+                  readonly>
+              </div>
+
+              <!-- Cantidad -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                  translate="no">CANTIDAD</label>
+                <input type="number" name="quantity" [(ngModel)]="newItem.quantity" placeholder="0" step="any"
+                  class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
+                  required>
+              </div>
+
+              <!-- Precio -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                  translate="no">PRECIO ($)</label>
+                <input type="number" name="buy_price" [(ngModel)]="newItem.buy_price" placeholder="0.00" step="any"
+                  class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
+                  required>
+              </div>
+
+              <!-- Fecha -->
+              <div class="col-span-1 md:col-span-2">
+                <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                  translate="no">FECHA</label>
+                <input type="date" name="buy_date" [(ngModel)]="newItem.buy_date"
+                  class="w-full bg-zen-lightest/50 text-zen-darkest border border-zen-medium/30 rounded-2xl px-4 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
+                  required>
+              </div>
+
+              <!-- Botón -->
+              <div class="col-span-1 md:col-span-12 mt-4">
+                <button type="submit" [disabled]="submitting || loadingCompany"
+                  class="w-full bg-zen-accent text-[#0f172a] rounded-2xl px-4 py-4 text-sm uppercase tracking-widest font-bold hover:bg-[#38bdf8] hover:shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+                  {{ submitting ? 'Guardando Posición en Base de Datos...' : 'Confirmar Compra' }}
+                </button>
+              </div>
+
+            </form>
+          </div>
+
+          <!-- Summary Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div
+              class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300">
+              <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Total Invertido</p>
+              <p class="text-3xl font-light text-zen-darkest">{{ portfolioData.summary.total_invested | currency }}</p>
+            </div>
+            <div
+              class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300">
+              <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Valor Actual</p>
+              <p class="text-3xl font-light text-zen-darkest">{{ portfolioData.summary.total_value | currency }}</p>
+            </div>
+            <div
+              class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300 relative overflow-hidden">
+              <div class="absolute inset-0 bg-green-500/10" *ngIf="portfolioData.summary.total_gain >= 0"></div>
+              <div class="absolute inset-0 bg-red-500/10" *ngIf="portfolioData.summary.total_gain < 0"></div>
+              <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3 relative z-10">Rendimiento Total</p>
+              <p class="text-3xl font-light relative z-10"
+                [ngClass]="{'text-green-400': portfolioData.summary.total_gain >= 0, 'text-red-400': portfolioData.summary.total_gain < 0}">
+                {{ portfolioData.summary.total_gain >= 0 ? '+' : '' }}{{ portfolioData.summary.total_gain | currency }}
+              </p>
+            </div>
           </div>
         </div>
-      </div>
+      </div> <!-- Cierre Top Section -->
+
+      <!-- Bottom Section: Assets Table -->
+      <div class="w-full max-w-7xl mt-4">
+        <main class="w-full w-full">
+          <div class="bg-zen-lightest rounded-3xl shadow-lg border border-zen-medium overflow-hidden">
+            <div class="px-10 py-8">
+              <h2 class="text-sm font-medium text-zen-dark uppercase tracking-widest mb-8">Mis Activos</h2>
+              <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                  <thead>
+                    <tr class="text-[10px] text-zen-dark/70 uppercase tracking-wider border-b border-zen-medium">
+                      <th class="pb-4 font-normal pl-2">Activo</th>
+                      <th class="pb-4 font-normal">Cantidad</th>
+                      <th class="pb-4 font-normal">Precio Compra</th>
+                      <th class="pb-4 font-normal">Precio Actual</th>
+                      <th class="pb-4 font-normal text-right pr-2">Ganancia</th>
+                      <th class="pb-4 font-normal"></th>
+                    </tr>
+                  </thead>
+                  <tbody class="text-sm">
+                    <tr *ngFor="let item of portfolioData.data"
+                      class="group border-b border-zen-medium/50 last:border-0 hover:bg-zen-light transition-colors duration-300">
+                      <td class="py-5 pl-2">
+                        <p class="font-medium text-zen-darkest transition-colors text-sm uppercase">{{ item.Symbol }}
+                        </p>
+                        <p class="text-[11px] text-zen-dark mt-1">{{ item.Company }}</p>
+                        <div class="mt-2 flex items-center" *ngIf="item.BuyDate">
+                          <span
+                            class="inline-flex items-center gap-1.5 px-2 py-1 rounded-md bg-zen-accent/10 border border-zen-accent/20">
+                            <svg class="w-3 h-3 text-zen-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                            </svg>
+                            <span class="text-[9px] text-zen-accent font-semibold tracking-widest">{{ item.BuyDate
+                              }}</span>
+                          </span>
+                        </div>
+                      </td>
+                      <td class="py-5 text-zen-text">{{ item.Quantity }}</td>
+                      <td class="py-5 text-zen-text/70">{{ item.BuyPrice | currency }}</td>
+                      <td class="py-5 text-zen-darkest font-medium">{{ item.CurrentPrice | currency }}</td>
+                      <td class="py-5 text-right pr-4 font-medium"
+                        [ngClass]="{'text-green-400': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
+                        {{ item.Gain >= 0 ? '+' : '' }}{{ item.Gain | currency }}
+                      </td>
+                      <td class="py-5 text-right pr-2">
+                        <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
+                          <!-- Botón Vender -->
+                          <button (click)="confirmSell(item)"
+                            class="text-zen-accent hover:text-blue-400 p-2 rounded-full hover:bg-zen-accent/10 transition-all"
+                            title="Vender Posición">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z">
+                              </path>
+                            </svg>
+                          </button>
+                          <!-- Botón Eliminar Físicamente -->
+                          <button (click)="confirmDelete(item)"
+                            class="text-zen-dark hover:text-red-400 p-2 rounded-full hover:bg-red-500/20 transition-all"
+                            title="Eliminar Registro (Error)">
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16">
+                              </path>
+                            </svg>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+              <div *ngIf="portfolioData.data.length === 0" class="text-center py-16 text-zen-dark">
+                <div class="w-16 h-16 rounded-full bg-zen-light flex items-center justify-center mx-auto mb-4">
+                  <svg class="w-6 h-6 text-zen-dark/50" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M20 12H4M12 20V4"></path>
+                  </svg>
+                </div>
+                <p class="font-light tracking-wide">El portafolio está vacío.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Delete Confirmation Modal Zen -->
+          <div *ngIf="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
+            <div class="absolute inset-0 bg-[#0f172a]/80 backdrop-blur-sm transition-opacity"></div>
+
+            <div
+              class="bg-[#1e293b] rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl border border-zen-medium/30 relative z-10 transform transition-all">
+              <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 mb-6">
+                <svg class="h-7 w-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+              </div>
+
+              <div class="text-center">
+                <h3 class="text-sm font-semibold tracking-widest text-[#f8fafc] uppercase mb-2">Cerrar Posición</h3>
+                <div class="mt-2">
+                  <p class="text-xs text-zen-dark leading-relaxed">
+                    ¿Estás seguro que deseas eliminar la posición de <span class="text-white font-medium">{{
+                      itemToDelete?.Symbol }}</span> de tu portafolio? Los datos se borrarán permanentemente.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-8 flex gap-3">
+                <button type="button" (click)="cancelDelete()" [disabled]="isDeleting"
+                  class="flex-1 rounded-xl bg-transparent px-4 py-3 text-xs font-semibold text-zen-dark ring-1 ring-inset ring-zen-medium hover:bg-zen-light transition-colors disabled:opacity-50">
+                  Mantener
+                </button>
+                <button type="button" (click)="executeDelete()" [disabled]="isDeleting"
+                  class="flex-1 rounded-xl bg-red-500/20 px-4 py-3 text-xs font-bold text-red-400 border border-red-500/20 hover:bg-red-500/30 hover:border-red-500/40 transition-colors disabled:opacity-50 flex justify-center shadow-inner">
+                  <span *ngIf="!isDeleting">Vender / Borrar</span>
+                  <span *ngIf="isDeleting" class="flex gap-1 items-center">
+                    <span class="w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce"
+                      style="animation-delay: 150ms"></span>
+                    <span class="w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce"
+                      style="animation-delay: 300ms"></span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sell Confirmation Modal Zen -->
+          <div *ngIf="showSellModal" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
+            <div class="absolute inset-0 bg-[#0f172a]/80 backdrop-blur-sm transition-opacity"></div>
+
+            <div
+              class="bg-[#1e293b] rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl border border-zen-medium/30 relative z-10 transform transition-all">
+              <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zen-accent/10 mb-6">
+                <svg class="h-7 w-7 text-zen-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                  aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                    d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+
+              <div class="text-center">
+                <h3 class="text-sm font-semibold tracking-widest text-[#f8fafc] uppercase mb-2">Vender Posición</h3>
+                <div class="mt-2 text-left">
+                  <p class="text-xs text-zen-dark leading-relaxed text-center mb-5">
+                    Registrar la venta de <span class="text-white font-medium">{{ itemToSell?.Symbol }}</span>. Quedará
+                    archivado en tu histórico.
+                  </p>
+
+                  <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                    translate="no">PRECIO DE VENTA ($)</label>
+                  <input type="number" [(ngModel)]="sellPrice" step="any" placeholder="0.00"
+                    class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-3.5 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner mb-4">
+
+                  <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                    translate="no">FECHA DE VENTA</label>
+                  <input type="date" [(ngModel)]="sellDate"
+                    class="w-full bg-zen-lightest/50 text-zen-darkest border border-zen-medium/30 rounded-2xl px-5 py-3.5 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner">
+                </div>
+              </div>
+
+              <div class="mt-8 flex gap-3">
+                <button type="button" (click)="cancelSell()" [disabled]="isSelling"
+                  class="flex-1 rounded-xl bg-transparent px-4 py-3 text-xs font-semibold text-zen-dark ring-1 ring-inset ring-zen-medium hover:bg-zen-light transition-colors disabled:opacity-50">
+                  Cancelar
+                </button>
+                <button type="button" (click)="executeSell()" [disabled]="isSelling"
+                  class="flex-1 rounded-xl bg-zen-accent/20 px-4 py-3 text-xs font-bold text-zen-accent border border-zen-accent/20 hover:bg-zen-accent/30 hover:border-zen-accent/40 transition-colors disabled:opacity-50 flex justify-center shadow-inner">
+                  <span *ngIf="!isSelling">Confirmar Venta</span>
+                  <span *ngIf="isSelling" class="flex gap-1 items-center">
+                    <span class="w-1.5 h-1.5 bg-zen-accent rounded-full animate-bounce"></span>
+                    <span class="w-1.5 h-1.5 bg-zen-accent rounded-full animate-bounce"
+                      style="animation-delay: 150ms"></span>
+                    <span class="w-1.5 h-1.5 bg-zen-accent rounded-full animate-bounce"
+                      style="animation-delay: 300ms"></span>
+                  </span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </main>
+      </div> <!-- Cierre Bottom Section -->
+
     </ng-container>
-
-    <!-- Delete Confirmation Modal Zen -->
-    <div *ngIf="showDeleteModal" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
-      <div class="absolute inset-0 bg-[#0f172a]/80 backdrop-blur-sm transition-opacity"></div>
-
-      <div
-        class="bg-[#1e293b] rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl border border-zen-medium/30 relative z-10 transform transition-all">
-        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-500/10 mb-6">
-          <svg class="h-7 w-7 text-red-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-          </svg>
-        </div>
-
-        <div class="text-center">
-          <h3 class="text-sm font-semibold tracking-widest text-[#f8fafc] uppercase mb-2">Cerrar Posición</h3>
-          <div class="mt-2">
-            <p class="text-xs text-zen-dark leading-relaxed">
-              ¿Estás seguro que deseas eliminar la posición de <span class="text-white font-medium">{{
-                itemToDelete?.Symbol }}</span> de tu portafolio? Los datos se borrarán permanentemente.
-            </p>
-          </div>
-        </div>
-
-        <div class="mt-8 flex gap-3">
-          <button type="button" (click)="cancelDelete()" [disabled]="isDeleting"
-            class="flex-1 rounded-xl bg-transparent px-4 py-3 text-xs font-semibold text-zen-dark ring-1 ring-inset ring-zen-medium hover:bg-zen-light transition-colors disabled:opacity-50">
-            Mantener
-          </button>
-          <button type="button" (click)="executeDelete()" [disabled]="isDeleting"
-            class="flex-1 rounded-xl bg-red-500/20 px-4 py-3 text-xs font-bold text-red-400 border border-red-500/20 hover:bg-red-500/30 hover:border-red-500/40 transition-colors disabled:opacity-50 flex justify-center shadow-inner">
-            <span *ngIf="!isDeleting">Vender / Borrar</span>
-            <span *ngIf="isDeleting" class="flex gap-1 items-center">
-              <span class="w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce"></span>
-              <span class="w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-              <span class="w-1.5 h-1.5 bg-red-400 rounded-full animate-bounce" style="animation-delay: 300ms"></span>
-            </span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Sell Confirmation Modal Zen -->
-    <div *ngIf="showSellModal" class="fixed inset-0 z-50 flex items-center justify-center pointer-events-auto">
-      <div class="absolute inset-0 bg-[#0f172a]/80 backdrop-blur-sm transition-opacity"></div>
-
-      <div
-        class="bg-[#1e293b] rounded-3xl p-8 max-w-sm w-full mx-4 shadow-2xl border border-zen-medium/30 relative z-10 transform transition-all">
-        <div class="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-zen-accent/10 mb-6">
-          <svg class="h-7 w-7 text-zen-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
-              d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </div>
-
-        <div class="text-center">
-          <h3 class="text-sm font-semibold tracking-widest text-[#f8fafc] uppercase mb-2">Vender Posición</h3>
-          <div class="mt-2 text-left">
-            <p class="text-xs text-zen-dark leading-relaxed text-center mb-5">
-              Registrar la venta de <span class="text-white font-medium">{{ itemToSell?.Symbol }}</span>. Quedará
-              archivado en tu histórico.
-            </p>
-
-            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
-              translate="no">PRECIO DE VENTA ($)</label>
-            <input type="number" [(ngModel)]="sellPrice" step="any" placeholder="0.00"
-              class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-3.5 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner mb-4">
-
-            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
-              translate="no">FECHA DE VENTA</label>
-            <input type="date" [(ngModel)]="sellDate"
-              class="w-full bg-zen-lightest/50 text-zen-darkest border border-zen-medium/30 rounded-2xl px-5 py-3.5 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner">
-          </div>
-        </div>
-
-        <div class="mt-8 flex gap-3">
-          <button type="button" (click)="cancelSell()" [disabled]="isSelling"
-            class="flex-1 rounded-xl bg-transparent px-4 py-3 text-xs font-semibold text-zen-dark ring-1 ring-inset ring-zen-medium hover:bg-zen-light transition-colors disabled:opacity-50">
-            Cancelar
-          </button>
-          <button type="button" (click)="executeSell()" [disabled]="isSelling"
-            class="flex-1 rounded-xl bg-zen-accent/20 px-4 py-3 text-xs font-bold text-zen-accent border border-zen-accent/20 hover:bg-zen-accent/30 hover:border-zen-accent/40 transition-colors disabled:opacity-50 flex justify-center shadow-inner">
-            <span *ngIf="!isSelling">Confirmar Venta</span>
-            <span *ngIf="isSelling" class="flex gap-1 items-center">
-              <span class="w-1.5 h-1.5 bg-zen-accent rounded-full animate-bounce"></span>
-              <span class="w-1.5 h-1.5 bg-zen-accent rounded-full animate-bounce" style="animation-delay: 150ms"></span>
-              <span class="w-1.5 h-1.5 bg-zen-accent rounded-full animate-bounce" style="animation-delay: 300ms"></span>
-            </span>
-          </button>
-        </div>
-      </div>
-    </div>
-
   </div>
 </div>

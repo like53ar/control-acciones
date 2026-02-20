@@ -56,4 +56,8 @@ export class PortfolioService {
         const baseUrl = this.apiUrl.replace('/portfolio', '');
         return this.http.get(`${baseUrl}/quote/${symbol}`);
     }
+    getExchangeRate(): Observable<any> {
+        const baseUrl = this.apiUrl.replace('/portfolio', '');
+        return this.http.get(`${baseUrl}/exchange-rate`);
+    }
 }

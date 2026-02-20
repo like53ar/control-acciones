@@ -183,6 +183,34 @@ app.get('/api/ping', (req, res) => {
     res.json({ status: 'ok', server: 'node' });
 });
 
+// GET /api/exchange-rate - Obtener cotización Dólar Cripto (USDT/ARS) de Binance
+app.get('/api/exchange-rate', async (req, res) => {
+    try {
+        // Obtenemos dinámicamente el módulo nativo "https"
+        const https = require('https');
+        https.get('https://api.binance.com/api/v3/ticker/price?symbol=USDTARS', (resp) => {
+            let data = '';
+            resp.on('data', (chunk) => { data += chunk; });
+            resp.on('end', () => {
+                try {
+                    const parsed = JSON.parse(data);
+                    if (parsed.price) {
+                        res.json({ price: parseFloat(parsed.price) });
+                    } else {
+                        res.status(404).json({ error: 'No se encontró precio para USDTARS' });
+                    }
+                } catch (err) {
+                    res.status(500).json({ error: 'Error analizando respuesta de Binance' });
+                }
+            });
+        }).on("error", (err) => {
+            res.status(500).json({ error: err.message });
+        });
+    } catch (e) {
+        res.status(500).json({ error: 'Fallo al interconectar con Binance' });
+    }
+});
+
 const PORT = 8000;
 // Escuchar explícitamente en localhost para seguridad y estabilidad
 app.listen(PORT, '127.0.0.1', () => {

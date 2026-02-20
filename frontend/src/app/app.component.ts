@@ -16,6 +16,10 @@ export class AppComponent implements OnInit, OnDestroy {
     portfolioData: PortfolioResponse | null = null;
     loading = true;
 
+    // Tipo de Cambio
+    exchangeRate: number | null = null;
+    loadingExchange = false;
+
     // Formulario de Inversión
     newItem = {
         symbol: '',
@@ -34,6 +38,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
     ngOnInit() {
         this.fetchData();
+        this.fetchExchangeRate();
 
         // Listener para buscar el nombre de la empresa sin saturar la API
         this.symbolSubscription = this.symbolSubject.pipe(
@@ -69,7 +74,9 @@ export class AppComponent implements OnInit, OnDestroy {
     }
 
     fetchData() {
-        this.loading = true;
+        if (!this.portfolioData) {
+            this.loading = true; // Solo mostrar esqueleto de carga la primera vez
+        }
         this.portfolioService.getPortfolio().subscribe({
             next: (data) => {
                 this.portfolioData = data;
@@ -78,6 +85,20 @@ export class AppComponent implements OnInit, OnDestroy {
             error: (err) => {
                 console.error('Error al obtener portafolio', err);
                 this.loading = false;
+            }
+        });
+    }
+
+    fetchExchangeRate() {
+        this.loadingExchange = true;
+        this.portfolioService.getExchangeRate().subscribe({
+            next: (data) => {
+                this.exchangeRate = data.price;
+                this.loadingExchange = false;
+            },
+            error: (err) => {
+                console.error('Error al obtener tipo de cambio', err);
+                this.loadingExchange = false;
             }
         });
     }
