@@ -46,6 +46,10 @@ export class PortfolioService {
         return this.http.delete(`${this.apiUrl}/${id}`);
     }
 
+    sellPortfolioItem(id: number, payload: { sell_price: number, sell_date: string }): Observable<any> {
+        return this.http.post(`${this.apiUrl}/${id}/sell`, payload);
+    }
+
     getQuote(symbol: string): Observable<any> {
         // En base a la URL actual 'http://localhost:8000/api/portfolio'
         // Calculamos la base para llamar a '/api/quote/:symbol'

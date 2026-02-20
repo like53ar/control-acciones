@@ -24,14 +24,17 @@ const db = new sqlite3.Database(dbPath, (err) => {
       quantity REAL NOT NULL,
       buy_price REAL NOT NULL,
       buy_date TEXT NOT NULL,
-      current_price REAL DEFAULT 0
+      current_price REAL DEFAULT 0,
+      status TEXT DEFAULT 'OPEN',
+      sell_price REAL,
+      sell_date TEXT
     )`);
     }
 });
 
 // GET /api/portfolio - Obtener cartera y actualizar precios
 app.get('/api/portfolio', async (req, res) => {
-    db.all('SELECT * FROM portfolio', async (err, rows) => {
+    db.all("SELECT * FROM portfolio WHERE status = 'OPEN'", async (err, rows) => {
         if (err) {
             return res.status(500).json({ error: err.message });
         }
@@ -143,7 +146,7 @@ app.post('/api/portfolio', async (req, res) => {
     );
 });
 
-// DELETE /api/portfolio/:id - Vender/Eliminar posición
+// DELETE /api/portfolio/:id - Eliminar posición por error
 app.delete('/api/portfolio/:id', (req, res) => {
     const id = req.params.id;
     db.run('DELETE FROM portfolio WHERE id = ?', [id], function (err) {
@@ -152,6 +155,27 @@ app.delete('/api/portfolio/:id', (req, res) => {
         }
         res.json({ message: 'Posición eliminada', changes: this.changes });
     });
+});
+
+// POST /api/portfolio/:id/sell - Vender posición
+app.post('/api/portfolio/:id/sell', (req, res) => {
+    const id = req.params.id;
+    const { sell_price, sell_date } = req.body;
+
+    if (sell_price === undefined || !sell_date) {
+        return res.status(400).json({ error: 'Faltan datos de venta (sell_price, sell_date)' });
+    }
+
+    db.run(
+        "UPDATE portfolio SET status = 'CLOSED', sell_price = ?, sell_date = ? WHERE id = ?",
+        [sell_price, sell_date, id],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            res.json({ message: 'Posición vendida exitosamente', changes: this.changes });
+        }
+    );
 });
 
 // Healthcheck

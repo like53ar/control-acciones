@@ -120,19 +120,83 @@ export class AppComponent implements OnInit, OnDestroy {
         });
     }
 
-    deleteItem(id: number) {
-        if (confirm('¿Deseas cerrar esta posición de tu portafolio? La acción es irreversible.')) {
-            this.loading = true;
-            this.portfolioService.deletePortfolioItem(id).subscribe({
-                next: () => {
-                    this.fetchData();
-                },
-                error: (err) => {
-                    console.error('Error al eliminar posición', err);
-                    alert('No se pudo eliminar la posición.');
-                    this.loading = false;
-                }
-            });
-        }
+    // Modal de Confirmación
+    showDeleteModal = false;
+    itemToDelete: any = null;
+    isDeleting = false;
+
+    confirmDelete(item: any) {
+        this.itemToDelete = item;
+        this.showDeleteModal = true;
+    }
+
+    cancelDelete() {
+        this.showDeleteModal = false;
+        this.itemToDelete = null;
+    }
+
+    executeDelete() {
+        if (!this.itemToDelete) return;
+
+        this.isDeleting = true;
+        this.portfolioService.deletePortfolioItem(this.itemToDelete.id).subscribe({
+            next: () => {
+                // Refresco "silencioso" para no hacer titilar toda la página
+                this.portfolioService.getPortfolio().subscribe(data => {
+                    this.portfolioData = data;
+                    this.isDeleting = false;
+                    this.showDeleteModal = false;
+                    this.itemToDelete = null;
+                });
+            },
+            error: (err) => {
+                console.error('Error al eliminar posición', err);
+                this.isDeleting = false;
+                this.showDeleteModal = false;
+                this.itemToDelete = null;
+            }
+        });
+    }
+
+    // Modal de Venta
+    showSellModal = false;
+    itemToSell: any = null;
+    isSelling = false;
+    sellPrice: number | null = null;
+    sellDate: string = new Date().toISOString().split('T')[0];
+
+    confirmSell(item: any) {
+        this.itemToSell = item;
+        this.sellPrice = item.CurrentPrice;
+        this.sellDate = new Date().toISOString().split('T')[0];
+        this.showSellModal = true;
+    }
+
+    cancelSell() {
+        this.showSellModal = false;
+        this.itemToSell = null;
+    }
+
+    executeSell() {
+        if (!this.itemToSell || !this.sellPrice || !this.sellDate) return;
+
+        this.isSelling = true;
+        this.portfolioService.sellPortfolioItem(this.itemToSell.id, {
+            sell_price: this.sellPrice,
+            sell_date: this.sellDate
+        }).subscribe({
+            next: () => {
+                this.portfolioService.getPortfolio().subscribe(data => {
+                    this.portfolioData = data;
+                    this.isSelling = false;
+                    this.showSellModal = false;
+                    this.itemToSell = null;
+                });
+            },
+            error: (err) => {
+                console.error('Error al vender posición', err);
+                this.isSelling = false;
+            }
+        });
     }
 }
