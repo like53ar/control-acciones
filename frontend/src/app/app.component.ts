@@ -16,6 +16,9 @@ export class AppComponent implements OnInit, OnDestroy {
     portfolioData: PortfolioResponse | null = null;
     loading = true;
 
+    // Resumen Agrupado
+    groupedAssets: any[] = [];
+
     // Tipo de Cambio
     exchangeRate: number | null = null;
     loadingExchange = false;
@@ -80,6 +83,7 @@ export class AppComponent implements OnInit, OnDestroy {
         this.portfolioService.getPortfolio().subscribe({
             next: (data) => {
                 this.portfolioData = data;
+                this.processGroupedAssets(data.data);
                 this.loading = false;
             },
             error: (err) => {
@@ -101,6 +105,31 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.loadingExchange = false;
             }
         });
+    }
+
+    processGroupedAssets(assets: any[]) {
+        const grouped = new Map<string, any>();
+
+        for (const item of assets) {
+            const sym = item.Symbol;
+            if (grouped.has(sym)) {
+                const existing = grouped.get(sym);
+                existing.Quantity += item.Quantity;
+                existing.CurrentValue += (item.Quantity * item.CurrentPrice);
+                // Opcional: Recalcular Ganancia Promediada al Agrupar
+            } else {
+                grouped.set(sym, {
+                    Symbol: sym,
+                    Company: item.Company,
+                    Quantity: item.Quantity,
+                    CurrentPrice: item.CurrentPrice,
+                    CurrentValue: item.Quantity * item.CurrentPrice
+                });
+            }
+        }
+
+        // Convertimos el Map en un Array y lo ordenamos por Valor Total Descendente
+        this.groupedAssets = Array.from(grouped.values()).sort((a, b) => b.CurrentValue - a.CurrentValue);
     }
 
     addItem() {
