@@ -7,13 +7,13 @@ module.exports = {
         extend: {
             colors: {
                 zen: {
-                    lightest: '#ffffff',
-                    light: '#f7f9fa',
-                    medium: '#e2e8f0',
-                    dark: '#94a3b8',
-                    darkest: '#334155',
-                    text: '#0f172a',
-                    accent: '#0ea5e9', // Un toque sutil de color si es necesario
+                    lightest: '#1e293b', // Fondo de formularios y tarjetas elevadas
+                    light: '#0f172a',    // Fondo principal de la página
+                    medium: '#334155',   // Bordes y separadores divisorios
+                    dark: '#94a3b8',     // Texto secundario o leyendas
+                    darkest: '#f8fafc',  // Títulos blancos, fuertes
+                    text: '#cbd5e1',     // Texto regular base
+                    accent: '#38bdf8',   // Acentos azules
                 }
             },
             fontFamily: {

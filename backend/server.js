@@ -1,7 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const sqlite3 = require('sqlite3').verbose();
-const yahooFinance = require('yahoo-finance2').default;
+const YahooFinance = require('yahoo-finance2').default;
+const yahooFinance = new YahooFinance();
 const path = require('path');
 
 const app = express();
@@ -86,29 +87,49 @@ app.get('/api/portfolio', async (req, res) => {
     });
 });
 
+// GET /api/quote/:symbol - Obtener nombre de la empresa y precio al instante
+app.get('/api/quote/:symbol', async (req, res) => {
+    const symbol = req.params.symbol.trim().toUpperCase();
+    try {
+        const quote = await yahooFinance.quote(symbol);
+        if (quote) {
+            return res.json({
+                symbol: symbol,
+                company: quote.shortName || quote.longName || symbol,
+                price: quote.regularMarketPrice || 0
+            });
+        } else {
+            return res.status(404).json({ error: 'Símbolo no encontrado' });
+        }
+    } catch (e) {
+        console.error(`Error obteniendo quote para ${symbol}:`, e.message);
+        return res.status(500).json({ error: 'Error interno obteniendo cotización' });
+    }
+});
+
 // POST /api/portfolio - Añadir nueva compra
 app.post('/api/portfolio', async (req, res) => {
-    const { symbol, quantity, buy_price } = req.body;
+    const { symbol, quantity, buy_price, buy_date: user_buy_date, company: user_company } = req.body;
     if (!symbol || !quantity || buy_price === undefined) {
         return res.status(400).json({ error: 'Faltan datos obligatorios (symbol, quantity, buy_price)' });
     }
 
     const cleanSymbol = symbol.trim().toUpperCase();
-    let company = cleanSymbol;
+    let company = user_company || cleanSymbol;
     let current_price = 0;
 
     try {
         const quote = await yahooFinance.quote(cleanSymbol);
         if (quote) {
-            company = quote.shortName || quote.longName || cleanSymbol;
+            if (!user_company) company = quote.shortName || quote.longName || cleanSymbol;
             current_price = quote.regularMarketPrice || 0;
         }
     } catch (e) {
         console.warn(`No se pudo obtener nombre de compañía en Yahoo Finance para ${cleanSymbol}`);
     }
 
-    // Fecha de hoy (YYYY-MM-DD)
-    const buy_date = new Date().toISOString().split('T')[0];
+    // Si el usuario provee una fecha la usamos, de lo contrario usamos hoy
+    const buy_date = user_buy_date || new Date().toISOString().split('T')[0];
 
     db.run(
         'INSERT INTO portfolio (symbol, company, quantity, buy_price, buy_date, current_price) VALUES (?, ?, ?, ?, ?, ?)',

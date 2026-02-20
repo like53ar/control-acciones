@@ -1,7 +1,9 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioResponse } from './portfolio.service';
+import { Subject, Subscription } from 'rxjs';
+import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 
 @Component({
     selector: 'app-root',
@@ -9,7 +11,7 @@ import { PortfolioService, PortfolioResponse } from './portfolio.service';
     imports: [CommonModule, FormsModule],
     templateUrl: './app.component.html'
 })
-export class AppComponent implements OnInit {
+export class AppComponent implements OnInit, OnDestroy {
     title = 'Portafolio Zen';
     portfolioData: PortfolioResponse | null = null;
     loading = true;
@@ -17,15 +19,53 @@ export class AppComponent implements OnInit {
     // Formulario de Inversión
     newItem = {
         symbol: '',
+        company: '',
         quantity: null as number | null,
-        buy_price: null as number | null
+        buy_price: null as number | null,
+        buy_date: new Date().toISOString().split('T')[0] // Default to today
     };
     submitting = false;
+    loadingCompany = false;
+
+    private symbolSubject = new Subject<string>();
+    private symbolSubscription!: Subscription;
 
     constructor(private portfolioService: PortfolioService) { }
 
     ngOnInit() {
         this.fetchData();
+
+        // Listener para buscar el nombre de la empresa sin saturar la API
+        this.symbolSubscription = this.symbolSubject.pipe(
+            debounceTime(500),
+            distinctUntilChanged()
+        ).subscribe(symbol => {
+            if (symbol && symbol.trim().length > 0) {
+                this.loadingCompany = true;
+                this.portfolioService.getQuote(symbol).subscribe({
+                    next: (res) => {
+                        this.newItem.company = res.company;
+                        this.loadingCompany = false;
+                    },
+                    error: () => {
+                        this.newItem.company = '';
+                        this.loadingCompany = false;
+                    }
+                });
+            } else {
+                this.newItem.company = '';
+            }
+        });
+    }
+
+    ngOnDestroy() {
+        if (this.symbolSubscription) {
+            this.symbolSubscription.unsubscribe();
+        }
+    }
+
+    onSymbolChange(value: string) {
+        this.symbolSubject.next(value);
     }
 
     fetchData() {
@@ -44,18 +84,31 @@ export class AppComponent implements OnInit {
 
     addItem() {
         if (!this.newItem.symbol || !this.newItem.quantity || !this.newItem.buy_price) {
-            alert('Por favor, completa todos los campos para añadir tu inversión.');
+            alert('Por favor, completa todos los campos requeridos para añadir tu inversión.');
             return;
         }
 
         this.submitting = true;
-        this.portfolioService.addPortfolioItem({
+
+        // Formatear payload para enviarlo al backend
+        const payload: any = {
             symbol: this.newItem.symbol,
             quantity: this.newItem.quantity,
             buy_price: this.newItem.buy_price
-        }).subscribe({
+        };
+
+        if (this.newItem.company) payload.company = this.newItem.company;
+        if (this.newItem.buy_date) payload.buy_date = this.newItem.buy_date;
+
+        this.portfolioService.addPortfolioItem(payload).subscribe({
             next: () => {
-                this.newItem = { symbol: '', quantity: null, buy_price: null };
+                this.newItem = {
+                    symbol: '',
+                    company: '',
+                    quantity: null,
+                    buy_price: null,
+                    buy_date: new Date().toISOString().split('T')[0]
+                };
                 this.submitting = false;
                 this.fetchData();
             },

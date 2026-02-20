@@ -13,9 +13,8 @@ WshShell.Run "cmd.exe /c ""cd /d """ & scriptDir & "\backend"" && node server.js
 ' Iniciar Frontend oculto
 WshShell.Run "cmd.exe /c ""cd /d """ & scriptDir & "\frontend"" && npm start""", 0, False
 
-' Mostrar cuadro de mensaje estético que se cierra solo después de 8 segundos (Popup)
-' 64 = Icono de Información (i)
-WshShell.Popup "Iniciando Portafolio Zen..." & vbCrLf & vbCrLf & "Los servidores se están encendiendo de manera oculta." & vbCrLf & "El navegador se abrirá en breve.", 8, "Cargando Sistema", 64
+' Mostrar pantalla de carga moderna (Splash Screen basada en HTA)
+WshShell.Run "mshta.exe """ & scriptDir & "\splash.hta""", 1, True
 
 ' Abrir el navegador en el puerto de Angular
 WshShell.Run "http://localhost:4200"

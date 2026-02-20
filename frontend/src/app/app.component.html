@@ -2,8 +2,8 @@
   <div class="max-w-5xl w-full mx-auto space-y-12">
     <!-- Header -->
     <header class="text-center space-y-3 mt-8">
-      <h1 class="text-5xl font-light tracking-tight text-zen-text">Portafolio Zen</h1>
-      <p class="text-zen-dark text-xs tracking-[0.2em] uppercase">Tranquilidad &amp; Control</p>
+      <h1 class="text-5xl font-light tracking-tight text-zen-darkest">Portafolio Zen</h1>
+      <p class="text-zen-accent text-xs tracking-[0.2em] uppercase">Tranquilidad &amp; Control</p>
     </header>
 
     <!-- Loading State -->
@@ -19,68 +19,110 @@
     <ng-container *ngIf="!loading && portfolioData">
 
       <!-- Formulario de Carga Zen -->
-      <div class="bg-white rounded-3xl p-6 shadow-sm border border-zen-medium/30 mb-8 mt-2 transition-all">
-        <h2 class="text-xs font-medium text-zen-dark uppercase tracking-widest mb-4">Añadir Activo</h2>
-        <form (ngSubmit)="addItem()" class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-          <div>
-            <label class="block text-[10px] uppercase tracking-wider text-zen-dark mb-2">Ticker / Símbolo</label>
-            <input type="text" name="symbol" [(ngModel)]="newItem.symbol" placeholder="Ej. AAPL"
-              class="w-full bg-zen-light border-0 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-zen-dark outline-none transition-shadow text-zen-text uppercase"
+      <div
+        class="bg-[#1e293b] rounded-[2rem] p-8 mb-8 mt-4 shadow-2xl border border-zen-medium/20 transition-all relative overflow-hidden">
+
+        <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
+
+        <div class="flex items-center justify-between mb-8 relative z-10">
+          <h2 class="text-[10px] font-bold text-zen-darkest uppercase tracking-[0.3em] opacity-90"><span
+              class="text-zen-accent mr-2">✦</span> Añadir Nueva Inversión</h2>
+        </div>
+
+        <form (ngSubmit)="addItem()" class="grid grid-cols-1 md:grid-cols-12 gap-5 items-end relative z-10">
+
+          <!-- Ticker -->
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+              translate="no">CÓDIGO</label>
+            <input type="text" name="symbol" [(ngModel)]="newItem.symbol" (ngModelChange)="onSymbolChange($event)"
+              placeholder="MSFT"
+              class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all uppercase shadow-inner"
               required autocomplete="off">
           </div>
-          <div>
-            <label class="block text-[10px] uppercase tracking-wider text-zen-dark mb-2">Cantidad</label>
+
+          <!-- Empresa -->
+          <div class="col-span-1 md:col-span-4 relative group">
+            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+              translate="no">EMPRESA
+              <span *ngIf="loadingCompany"
+                class="ml-2 text-[10px] text-zen-accent animate-pulse font-normal lowercase tracking-normal">buscando...</span>
+            </label>
+            <input type="text" name="company" [ngModel]="newItem.company" placeholder="Nombre automático..."
+              class="w-full bg-zen-lightest/20 text-zen-darkest placeholder-zen-dark/20 border border-zen-medium/10 rounded-2xl px-5 py-4 text-sm outline-none cursor-not-allowed italic opacity-80"
+              readonly>
+          </div>
+
+          <!-- Cantidad -->
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+              translate="no">CANTIDAD</label>
             <input type="number" name="quantity" [(ngModel)]="newItem.quantity" placeholder="0" step="any"
-              class="w-full bg-zen-light border-0 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-zen-dark outline-none transition-shadow text-zen-text"
+              class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
               required>
           </div>
-          <div>
-            <label class="block text-[10px] uppercase tracking-wider text-zen-dark mb-2">Precio Compra ($)</label>
+
+          <!-- Precio -->
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+              translate="no">PRECIO ($)</label>
             <input type="number" name="buy_price" [(ngModel)]="newItem.buy_price" placeholder="0.00" step="any"
-              class="w-full bg-zen-light border-0 rounded-xl px-4 py-3 text-sm focus:ring-1 focus:ring-zen-dark outline-none transition-shadow text-zen-text"
+              class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
               required>
           </div>
-          <div>
-            <button type="submit" [disabled]="submitting"
-              class="w-full bg-zen-text text-white rounded-xl px-4 py-3 text-sm font-medium hover:bg-black transition-colors disabled:opacity-50">
-              {{ submitting ? 'Guardando...' : 'Guardar Posición' }}
+
+          <!-- Fecha -->
+          <div class="col-span-1 md:col-span-2">
+            <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+              translate="no">FECHA</label>
+            <input type="date" name="buy_date" [(ngModel)]="newItem.buy_date"
+              class="w-full bg-zen-lightest/50 text-zen-darkest border border-zen-medium/30 rounded-2xl px-4 py-4 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner"
+              required>
+          </div>
+
+          <!-- Botón -->
+          <div class="col-span-1 md:col-span-12 mt-4">
+            <button type="submit" [disabled]="submitting || loadingCompany"
+              class="w-full bg-zen-accent text-[#0f172a] rounded-2xl px-4 py-4 text-sm uppercase tracking-widest font-bold hover:bg-[#38bdf8] hover:shadow-[0_0_20px_rgba(56,189,248,0.3)] transition-all disabled:opacity-50 disabled:cursor-not-allowed">
+              {{ submitting ? 'Guardando Posición en Base de Datos...' : 'Confirmar Compra' }}
             </button>
           </div>
+
         </form>
       </div>
 
       <!-- Summary Cards -->
       <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div
-          class="bg-white p-8 rounded-3xl shadow-sm border border-zen-medium/30 flex flex-col items-center justify-center hover:shadow-md transition-shadow duration-300">
+          class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300">
           <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Total Invertido</p>
-          <p class="text-3xl font-light text-zen-text">{{ portfolioData.summary.total_invested | currency }}</p>
+          <p class="text-3xl font-light text-zen-darkest">{{ portfolioData.summary.total_invested | currency }}</p>
         </div>
         <div
-          class="bg-white p-8 rounded-3xl shadow-sm border border-zen-medium/30 flex flex-col items-center justify-center hover:shadow-md transition-shadow duration-300">
+          class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300">
           <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Valor Actual</p>
-          <p class="text-3xl font-light text-zen-text">{{ portfolioData.summary.total_value | currency }}</p>
+          <p class="text-3xl font-light text-zen-darkest">{{ portfolioData.summary.total_value | currency }}</p>
         </div>
         <div
-          class="bg-white p-8 rounded-3xl shadow-sm border border-zen-medium/30 flex flex-col items-center justify-center hover:shadow-md transition-shadow duration-300 relative overflow-hidden">
-          <div class="absolute inset-0 bg-green-50/30" *ngIf="portfolioData.summary.total_gain >= 0"></div>
-          <div class="absolute inset-0 bg-red-50/30" *ngIf="portfolioData.summary.total_gain < 0"></div>
+          class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300 relative overflow-hidden">
+          <div class="absolute inset-0 bg-green-500/10" *ngIf="portfolioData.summary.total_gain >= 0"></div>
+          <div class="absolute inset-0 bg-red-500/10" *ngIf="portfolioData.summary.total_gain < 0"></div>
           <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3 relative z-10">Rendimiento Total</p>
           <p class="text-3xl font-light relative z-10"
-            [ngClass]="{'text-green-600': portfolioData.summary.total_gain >= 0, 'text-red-400': portfolioData.summary.total_gain < 0}">
+            [ngClass]="{'text-green-400': portfolioData.summary.total_gain >= 0, 'text-red-400': portfolioData.summary.total_gain < 0}">
             {{ portfolioData.summary.total_gain >= 0 ? '+' : '' }}{{ portfolioData.summary.total_gain | currency }}
           </p>
         </div>
       </div>
 
       <!-- Assets List -->
-      <div class="bg-white rounded-3xl shadow-sm border border-zen-medium/30 overflow-hidden mt-12">
+      <div class="bg-zen-lightest rounded-3xl shadow-lg border border-zen-medium overflow-hidden mt-12">
         <div class="px-10 py-8">
           <h2 class="text-sm font-medium text-zen-dark uppercase tracking-widest mb-8">Mis Activos</h2>
           <div class="overflow-x-auto">
             <table class="w-full text-left">
               <thead>
-                <tr class="text-[10px] text-zen-dark/70 uppercase tracking-wider border-b border-zen-medium/20">
+                <tr class="text-[10px] text-zen-dark/70 uppercase tracking-wider border-b border-zen-medium">
                   <th class="pb-4 font-normal pl-2">Activo</th>
                   <th class="pb-4 font-normal">Cantidad</th>
                   <th class="pb-4 font-normal">Precio Compra</th>
@@ -91,21 +133,22 @@
               </thead>
               <tbody class="text-sm">
                 <tr *ngFor="let item of portfolioData.data"
-                  class="group border-b border-zen-medium/10 last:border-0 hover:bg-zen-light/50 transition-colors duration-300">
+                  class="group border-b border-zen-medium/50 last:border-0 hover:bg-zen-light transition-colors duration-300">
                   <td class="py-5 pl-2">
-                    <p class="font-medium text-zen-text group-hover:text-black transition-colors">{{ item.Symbol }}</p>
+                    <p class="font-medium text-zen-darkest transition-colors">{{ item.Symbol }}</p>
                     <p class="text-[11px] text-zen-dark mt-1">{{ item.Company }}</p>
+                    <p class="text-[9px] text-zen-medium/80 mt-1" *ngIf="item.BuyDate">{{ item.BuyDate }}</p>
                   </td>
-                  <td class="py-5 text-zen-text/80">{{ item.Quantity }}</td>
-                  <td class="py-5 text-zen-dark">{{ item.BuyPrice | currency }}</td>
-                  <td class="py-5 text-zen-text font-medium">{{ item.CurrentPrice | currency }}</td>
+                  <td class="py-5 text-zen-text">{{ item.Quantity }}</td>
+                  <td class="py-5 text-zen-text/70">{{ item.BuyPrice | currency }}</td>
+                  <td class="py-5 text-zen-darkest font-medium">{{ item.CurrentPrice | currency }}</td>
                   <td class="py-5 text-right pr-4 font-medium"
-                    [ngClass]="{'text-green-500': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
+                    [ngClass]="{'text-green-400': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
                     {{ item.Gain >= 0 ? '+' : '' }}{{ item.Gain | currency }}
                   </td>
                   <td class="py-5 text-right pr-2">
                     <button (click)="deleteItem(item.id)"
-                      class="text-zen-dark opacity-0 group-hover:opacity-100 hover:text-red-500 transition-all p-2 rounded-full hover:bg-red-50"
+                      class="text-zen-dark opacity-0 group-hover:opacity-100 hover:text-red-400 transition-all p-2 rounded-full hover:bg-red-500/20"
                       title="Vender/Anotar Cierre">
                       <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
                         xmlns="http://www.w3.org/2000/svg">
