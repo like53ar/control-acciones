@@ -19,9 +19,18 @@ export class AppComponent implements OnInit, OnDestroy {
     title = 'Portafolio Zen';
     portfolioData: PortfolioResponse | null = null;
     loading = true;
+    currentDate = new Date();
 
     // Resumen Agrupado
     groupedAssets: any[] = [];
+
+    getDaysElapsed(buyDate: string): string | number {
+        if (!buyDate) return '-';
+        const buy = new Date(buyDate).getTime();
+        const now = new Date().getTime();
+        const diffDays = Math.floor((now - buy) / (1000 * 60 * 60 * 24));
+        return diffDays;
+    }
 
     // Tipo de Cambio
     exchangeRate: number | null = null;
