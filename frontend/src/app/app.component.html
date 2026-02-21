@@ -25,13 +25,26 @@
               </h2>
 
               <div class="space-y-1">
-                <p class="text-[10px] text-zen-dark uppercase tracking-widest font-medium" translate="no">USDT / ARS
-                  (Binance)</p>
+                <div class="flex items-center justify-between">
+                  <p class="text-[10px] text-zen-dark uppercase tracking-widest font-medium" translate="no">USDT / ARS
+                    (Binance)</p>
+                  <span *ngIf="isExchangeRateOutdated" class="flex h-2 w-2 relative"
+                    title="Desactualizado (hace más de 5 minutos)">
+                    <span
+                      class="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
+                    <span class="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                  </span>
+                </div>
                 <div *ngIf="loadingExchange" class="h-10 w-24 bg-zen-light/10 animate-pulse rounded-xl mt-2"></div>
                 <p *ngIf="!loadingExchange && exchangeRate" class="text-3xl font-light text-white tracking-tight mt-1">
                   {{ exchangeRate | currency:'$':'symbol':'1.2-2' }}
                 </p>
                 <p *ngIf="!loadingExchange && !exchangeRate" class="text-xs text-red-400 mt-2">No disponible</p>
+                <p *ngIf="!loadingExchange && exchangeRateLastUpdated" class="text-[9px] transition-colors"
+                  [ngClass]="isExchangeRateOutdated ? 'text-red-400/90 font-medium' : 'text-zen-dark/60'">
+                  <span *ngIf="isExchangeRateOutdated">Desactualizado • </span>
+                  Actualizado: {{ exchangeRateLastUpdated | date:'dd/MM/yy HH:mm' }}
+                </p>
               </div>
             </div>
           </div>

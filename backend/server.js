@@ -183,8 +183,31 @@ app.get('/api/ping', (req, res) => {
     res.json({ status: 'ok', server: 'node' });
 });
 
+// Función auxiliar para leer caché
+function readCache(cachePath, res, errorMsg) {
+    const fs = require('fs');
+    fs.readFile(cachePath, 'utf8', (err, data) => {
+        if (err) {
+            console.error(errorMsg, err);
+            return res.status(500).json({ error: errorMsg });
+        }
+        try {
+            const cache = JSON.parse(data);
+            if (cache.rate) {
+                return res.json({ price: cache.rate, last_updated: cache.timestamp, cached: true });
+            }
+        } catch (parseErr) {
+            console.error('Error parsing cache', parseErr);
+        }
+        res.status(500).json({ error: errorMsg });
+    });
+}
+
 // GET /api/exchange-rate - Obtener cotización Dólar Cripto (USDT/ARS) de Binance
 app.get('/api/exchange-rate', async (req, res) => {
+    const fs = require('fs');
+    const cachePath = path.join(__dirname, '..', 'rate_cache.json');
+
     try {
         // Obtenemos dinámicamente el módulo nativo "https"
         const https = require('https');
@@ -195,19 +218,28 @@ app.get('/api/exchange-rate', async (req, res) => {
                 try {
                     const parsed = JSON.parse(data);
                     if (parsed.price) {
-                        res.json({ price: parseFloat(parsed.price) });
+                        const price = parseFloat(parsed.price);
+                        const last_updated = new Date().toISOString();
+
+                        // Guardar en caché
+                        const cacheData = { rate: price, source: 'USDT (Binance)', timestamp: last_updated };
+                        fs.writeFile(cachePath, JSON.stringify(cacheData), (err) => {
+                            if (err) console.error('Error guardando rate_cache.json:', err);
+                        });
+
+                        res.json({ price: price, last_updated: last_updated });
                     } else {
-                        res.status(404).json({ error: 'No se encontró precio para USDTARS' });
+                        readCache(cachePath, res, 'No se encontró precio para USDTARS y caché no disponible');
                     }
                 } catch (err) {
-                    res.status(500).json({ error: 'Error analizando respuesta de Binance' });
+                    readCache(cachePath, res, 'Error analizando respuesta de Binance');
                 }
             });
         }).on("error", (err) => {
-            res.status(500).json({ error: err.message });
+            readCache(cachePath, res, err.message);
         });
     } catch (e) {
-        res.status(500).json({ error: 'Fallo al interconectar con Binance' });
+        readCache(cachePath, res, 'Fallo al interconectar con Binance');
     }
 });
 

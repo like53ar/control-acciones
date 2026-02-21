@@ -22,6 +22,9 @@ export class AppComponent implements OnInit, OnDestroy {
     // Tipo de Cambio
     exchangeRate: number | null = null;
     loadingExchange = false;
+    exchangeRateLastUpdated: string | null = null;
+    isExchangeRateOutdated: boolean = false;
+    private exchangeInterval: any;
 
     // Formulario de Inversión
     newItem = {
@@ -42,6 +45,10 @@ export class AppComponent implements OnInit, OnDestroy {
     ngOnInit() {
         this.fetchData();
         this.fetchExchangeRate();
+
+        this.exchangeInterval = setInterval(() => {
+            this.checkExchangeRateOutdated();
+        }, 60000); // Chequear cada minuto si se desactualiza
 
         // Listener para buscar el nombre de la empresa sin saturar la API
         this.symbolSubscription = this.symbolSubject.pipe(
@@ -69,6 +76,9 @@ export class AppComponent implements OnInit, OnDestroy {
     ngOnDestroy() {
         if (this.symbolSubscription) {
             this.symbolSubscription.unsubscribe();
+        }
+        if (this.exchangeInterval) {
+            clearInterval(this.exchangeInterval);
         }
     }
 
@@ -98,6 +108,8 @@ export class AppComponent implements OnInit, OnDestroy {
         this.portfolioService.getExchangeRate().subscribe({
             next: (data) => {
                 this.exchangeRate = data.price;
+                this.exchangeRateLastUpdated = data.last_updated;
+                this.checkExchangeRateOutdated();
                 this.loadingExchange = false;
             },
             error: (err) => {
@@ -105,6 +117,25 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.loadingExchange = false;
             }
         });
+    }
+
+    checkExchangeRateOutdated() {
+        if (!this.exchangeRateLastUpdated) {
+            this.isExchangeRateOutdated = false;
+            return;
+        }
+
+        let dateStr = this.exchangeRateLastUpdated;
+        // Compatibilidad con formato antiguo "2026-02-19 17:56:35" -> "2026-02-19T17:56:35Z"
+        if (dateStr.includes(' ') && !dateStr.includes('T')) {
+            dateStr = dateStr.replace(' ', 'T') + 'Z';
+        }
+
+        const lastUpdated = new Date(dateStr).getTime();
+        const now = new Date().getTime();
+        const diffMinutes = (now - lastUpdated) / (1000 * 60);
+
+        this.isExchangeRateOutdated = diffMinutes > 5;
     }
 
     processGroupedAssets(assets: any[]) {
