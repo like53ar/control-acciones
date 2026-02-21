@@ -146,6 +146,49 @@ app.post('/api/portfolio', async (req, res) => {
     );
 });
 
+// PUT /api/portfolio/:id - Modificar compra existente
+app.put('/api/portfolio/:id', async (req, res) => {
+    const id = req.params.id;
+    const { symbol, quantity, buy_price, buy_date: user_buy_date, company: user_company } = req.body;
+
+    if (!symbol || !quantity || buy_price === undefined) {
+        return res.status(400).json({ error: 'Faltan datos obligatorios (symbol, quantity, buy_price)' });
+    }
+
+    const cleanSymbol = symbol.trim().toUpperCase();
+    let company = user_company || cleanSymbol;
+    let current_price = 0;
+
+    // Obtener precio actual (y empresa si el usuario no la ingresó)
+    try {
+        const quote = await yahooFinance.quote(cleanSymbol);
+        if (quote) {
+            if (!user_company || user_company === cleanSymbol) {
+                company = quote.shortName || quote.longName || cleanSymbol;
+            }
+            current_price = quote.regularMarketPrice || 0;
+        }
+    } catch (e) {
+        console.warn(`No se pudo obtener nombre de compañía en Yahoo Finance para modificar ${cleanSymbol}`);
+    }
+
+    const buy_date = user_buy_date || new Date().toISOString().split('T')[0];
+
+    db.run(
+        'UPDATE portfolio SET symbol = ?, company = ?, quantity = ?, buy_price = ?, buy_date = ?, current_price = ? WHERE id = ?',
+        [cleanSymbol, company, quantity, buy_price, buy_date, current_price, id],
+        function (err) {
+            if (err) {
+                return res.status(500).json({ error: err.message });
+            }
+            if (this.changes === 0) {
+                return res.status(404).json({ error: 'Posición no encontrada' });
+            }
+            res.json({ message: 'Posición actualizada correctamente', changes: this.changes });
+        }
+    );
+});
+
 // DELETE /api/portfolio/:id - Eliminar posición por error
 app.delete('/api/portfolio/:id', (req, res) => {
     const id = req.params.id;

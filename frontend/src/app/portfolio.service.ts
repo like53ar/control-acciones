@@ -46,6 +46,10 @@ export class PortfolioService {
         return this.http.delete(`${this.apiUrl}/${id}`);
     }
 
+    updatePortfolioItem(id: number, payload: any): Observable<any> {
+        return this.http.put(`${this.apiUrl}/${id}`, payload);
+    }
+
     sellPortfolioItem(id: number, payload: { sell_price: number, sell_date: string }): Observable<any> {
         return this.http.post(`${this.apiUrl}/${id}/sell`, payload);
     }

@@ -246,6 +246,18 @@ export class AppComponent implements OnInit, OnDestroy {
     sellPrice: number | null = null;
     sellDate: string = new Date().toISOString().split('T')[0];
 
+    // Modal de Edición
+    showEditModal = false;
+    itemToEditOrig: any = null;
+    isEditing = false;
+    editItemData = {
+        symbol: '',
+        company: '',
+        quantity: null as number | null,
+        buy_price: null as number | null,
+        buy_date: ''
+    };
+
     confirmSell(item: any) {
         this.itemToSell = item;
         this.sellPrice = item.CurrentPrice;
@@ -277,6 +289,55 @@ export class AppComponent implements OnInit, OnDestroy {
             error: (err) => {
                 console.error('Error al vender posición', err);
                 this.isSelling = false;
+            }
+        });
+    }
+
+    // Modal de Edición Methods
+    confirmEdit(item: any) {
+        this.itemToEditOrig = item;
+        this.editItemData = {
+            symbol: item.Symbol,
+            company: item.Company,
+            quantity: item.Quantity,
+            buy_price: item.BuyPrice,
+            buy_date: item.BuyDate || ''
+        };
+        this.showEditModal = true;
+    }
+
+    cancelEdit() {
+        this.showEditModal = false;
+        this.itemToEditOrig = null;
+    }
+
+    executeEdit() {
+        if (!this.itemToEditOrig || !this.editItemData.symbol || !this.editItemData.quantity || !this.editItemData.buy_price) {
+            return;
+        }
+
+        this.isEditing = true;
+        const payload: any = {
+            symbol: this.editItemData.symbol,
+            quantity: this.editItemData.quantity,
+            buy_price: this.editItemData.buy_price,
+            company: this.editItemData.company,
+            buy_date: this.editItemData.buy_date
+        };
+
+        this.portfolioService.updatePortfolioItem(this.itemToEditOrig.id, payload).subscribe({
+            next: () => {
+                this.portfolioService.getPortfolio().subscribe(data => {
+                    this.portfolioData = data;
+                    this.isEditing = false;
+                    this.showEditModal = false;
+                    this.itemToEditOrig = null;
+                });
+            },
+            error: (err) => {
+                console.error('Error al editar posición', err);
+                alert('Ocurrió un error al guardar los cambios.');
+                this.isEditing = false;
             }
         });
     }
