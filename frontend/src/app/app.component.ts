@@ -143,18 +143,21 @@ export class AppComponent implements OnInit, OnDestroy {
 
         for (const item of assets) {
             const sym = item.Symbol;
+            const quantity = parseFloat(item.Quantity) || 0;
+            const currentPrice = parseFloat(item.CurrentPrice) || 0;
+            const value = quantity * currentPrice;
+
             if (grouped.has(sym)) {
                 const existing = grouped.get(sym);
-                existing.Quantity += item.Quantity;
-                existing.CurrentValue += (item.Quantity * item.CurrentPrice);
-                // Opcional: Recalcular Ganancia Promediada al Agrupar
+                existing.Quantity += quantity;
+                existing.CurrentValue += value;
             } else {
                 grouped.set(sym, {
                     Symbol: sym,
                     Company: item.Company,
-                    Quantity: item.Quantity,
-                    CurrentPrice: item.CurrentPrice,
-                    CurrentValue: item.Quantity * item.CurrentPrice
+                    Quantity: quantity,
+                    CurrentPrice: currentPrice,
+                    CurrentValue: value
                 });
             }
         }
