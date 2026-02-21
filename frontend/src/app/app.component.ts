@@ -280,4 +280,59 @@ export class AppComponent implements OnInit, OnDestroy {
             }
         });
     }
+
+    // Exportar a CSV
+    exportToCSV() {
+        if (!this.portfolioData || !this.portfolioData.data || this.portfolioData.data.length === 0) {
+            alert('No hay datos para exportar.');
+            return;
+        }
+
+        const headers = ['Activo', 'Empresa', 'Cantidad', 'Precio Compra', 'Precio Actual', 'Total Invertido', 'Valor Actual', 'Ganancia', 'Fecha Compra'];
+
+        // Escape helper for CSV cells
+        const escapeCSV = (field: any) => {
+            if (field === null || field === undefined) return '';
+            const str = String(field);
+            // Si tiene comas, comillas dobles o saltos de línea, lo envolvemos en comillas y escapamos las comillas internas
+            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
+                return `"${str.replace(/"/g, '""')}"`;
+            }
+            return str;
+        };
+
+        const rows = this.portfolioData.data.map(item => [
+            escapeCSV(item.Symbol),
+            escapeCSV(item.Company),
+            escapeCSV(item.Quantity),
+            escapeCSV(item.BuyPrice),
+            escapeCSV(item.CurrentPrice),
+            escapeCSV(item.TotalInvested),
+            escapeCSV(item.CurrentTotal),
+            escapeCSV(item.Gain),
+            escapeCSV(item.BuyDate || '')
+        ]);
+
+        const csvContent = [
+            headers.join(','),
+            ...rows.map(row => row.join(','))
+        ].join('\n');
+
+        // Agregar BOM para que Excel detecte UTF-8 correctamente (acentos y caracteres especiales)
+        const blob = new Blob(['\ufeff' + csvContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+
+        const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        link.setAttribute('href', url);
+        link.setAttribute('download', `portafolio_zen_${dateStr}.csv`);
+        document.body.appendChild(link);
+        link.click();
+
+        // Limpiar
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
 }

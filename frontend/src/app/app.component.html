@@ -159,7 +159,19 @@
         <main class="w-full lg:w-3/4">
           <div class="bg-zen-lightest rounded-3xl shadow-lg border border-zen-medium overflow-hidden">
             <div class="px-10 py-8">
-              <h2 class="text-sm font-medium text-zen-dark uppercase tracking-widest mb-8">Mis Activos</h2>
+              <div class="flex justify-between items-center mb-8">
+                <h2 class="text-sm font-medium text-zen-dark uppercase tracking-widest">Mis Activos</h2>
+                <button (click)="exportToCSV()"
+                  class="flex items-center gap-2 text-xs text-zen-dark hover:text-zen-darkest font-medium uppercase tracking-widest bg-zen-light/50 hover:bg-zen-medium/20 px-4 py-2 rounded-xl transition-colors border border-zen-medium/50">
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z">
+                    </path>
+                  </svg>
+                  Exportar a CSV
+                </button>
+              </div>
               <div class="overflow-x-auto">
                 <table class="w-full text-left">
                   <thead>
@@ -287,11 +299,10 @@
             </div>
 
             <div class="text-center">
-              <h3 class="text-sm font-semibold tracking-widest text-[#f8fafc] uppercase mb-2">Cerrar Posición</h3>
-              <div class="mt-2">
+              <h3 class="text-sm font-semibold tracking-widest text-[#f8fafc] uppercase mb-2">Eliminar Registro</h3>
+              <div class="mt-2 text-center">
                 <p class="text-xs text-zen-dark leading-relaxed">
-                  ¿Estás seguro que deseas eliminar la posición de <span class="text-white font-medium">{{
-                    itemToDelete?.Symbol }}</span> de tu portafolio? Los datos se borrarán permanentemente.
+                  ¿Sí esta seguro de borrar el registro?
                 </p>
               </div>
             </div>
