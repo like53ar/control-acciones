@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioResponse } from './portfolio.service';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
+import Chart from 'chart.js/auto';
 
 @Component({
     selector: 'app-root',
@@ -261,6 +262,10 @@ export class AppComponent implements OnInit, OnDestroy {
         buy_date: ''
     };
 
+    // Modal de Gráfico de Torta
+    showChartModal = false;
+    portfolioChart: any;
+
     confirmSell(item: any) {
         this.itemToSell = item;
         this.sellPrice = item.CurrentPrice;
@@ -343,6 +348,82 @@ export class AppComponent implements OnInit, OnDestroy {
                 this.isEditing = false;
             }
         });
+    }
+
+    // Modal de Gráfico de Torta Methods
+    openChartModal() {
+        this.showChartModal = true;
+
+        // Wait for modal to render the canvas
+        setTimeout(() => {
+            const ctx = document.getElementById('portfolioPieChart') as HTMLCanvasElement;
+            if (!ctx) return;
+
+            // Prepare data from groupedAssets
+            const sortedAssets = [...this.groupedAssets].sort((a, b) => b.CurrentValue - a.CurrentValue);
+            const labels = sortedAssets.map(a => a.Symbol);
+            const data = sortedAssets.map(a => a.CurrentValue);
+
+            const backgroundColors = [
+                '#38bdf8', '#818cf8', '#f472b6', '#34d399', '#fbbf24',
+                '#f87171', '#a78bfa', '#2dd4bf', '#fb923c', '#9ca3af'
+            ];
+
+            if (this.portfolioChart) {
+                this.portfolioChart.destroy();
+            }
+
+            this.portfolioChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderWidth: 1,
+                        borderColor: '#1e293b'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'right',
+                            labels: {
+                                color: '#cbd5e1',
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 11
+                                }
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context: any) {
+                                    let label = context.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed !== null) {
+                                        label += new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(context.parsed);
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }, 50);
+    }
+
+    closeChartModal() {
+        this.showChartModal = false;
+        if (this.portfolioChart) {
+            this.portfolioChart.destroy();
+            this.portfolioChart = null;
+        }
     }
 
     // Exportar a CSV
