@@ -127,7 +127,19 @@
           </div>
 
           <!-- Summary Cards -->
-          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div
+              class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300 relative">
+              <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Valor en USD</p>
+              <p class="text-3xl font-light text-zen-darkest">
+                <span *ngIf="exchangeRate">U$S {{ (portfolioData.summary.total_value / exchangeRate) | number:'1.2-2'
+                  }}</span>
+                <span *ngIf="!exchangeRate" class="text-zen-dark/50">---</span>
+              </p>
+              <p *ngIf="exchangeRate" class="text-[9px] text-zen-dark/60 absolute bottom-3 uppercase tracking-widest">
+                Estimado s/ Binance
+              </p>
+            </div>
             <div
               class="bg-zen-lightest p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300">
               <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-3">Total Invertido</p>
