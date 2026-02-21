@@ -5,6 +5,9 @@ import { PortfolioService, PortfolioResponse } from './portfolio.service';
 import { Subject, Subscription } from 'rxjs';
 import { debounceTime, distinctUntilChanged } from 'rxjs/operators';
 import Chart from 'chart.js/auto';
+import ChartDataLabels from 'chartjs-plugin-datalabels';
+
+Chart.register(ChartDataLabels);
 
 @Component({
     selector: 'app-root',
@@ -388,6 +391,27 @@ export class AppComponent implements OnInit, OnDestroy {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
+                        datalabels: {
+                            formatter: (value: any, ctx: any) => {
+                                let sum = 0;
+                                let dataArr = ctx.chart.data.datasets[0].data;
+                                dataArr.map((data: number) => {
+                                    sum += data;
+                                });
+                                let percentage = (value * 100 / sum).toFixed(1) + "%";
+                                // Hide labels for very small slices (e.g. < 3%)
+                                if ((value * 100 / sum) < 3) return null;
+                                return percentage;
+                            },
+                            color: '#fff',
+                            font: {
+                                weight: 'bold',
+                                size: 12,
+                                family: "'Inter', sans-serif"
+                            },
+                            textStrokeColor: 'rgba(0,0,0,0.5)',
+                            textStrokeWidth: 1
+                        },
                         legend: {
                             position: 'right',
                             labels: {
