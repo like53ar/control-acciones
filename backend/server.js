@@ -289,5 +289,9 @@ app.get('/api/exchange-rate', async (req, res) => {
 const PORT = 8000;
 // Escuchar explícitamente en localhost para seguridad y estabilidad
 app.listen(PORT, '127.0.0.1', () => {
+    console.log('==================================================');
+    console.log(`Portafolio Zen Backend - Creado por Fabian A.Correa`);
+    console.log('==================================================');
     console.log(`Servidor Node.js corriendo en http://127.0.0.1:${PORT}`);
+    console.log('==================================================');
 });
