@@ -1,4 +1,4 @@
-import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Component, OnInit, OnDestroy, AfterViewInit, ElementRef, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { PortfolioService, PortfolioResponse } from './portfolio.service';
@@ -15,8 +15,10 @@ Chart.register(ChartDataLabels);
     imports: [CommonModule, FormsModule],
     templateUrl: './app.component.html'
 })
-export class AppComponent implements OnInit, OnDestroy {
+export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     title = 'Portafolio Zen';
+    @ViewChild('tickerContainer', { static: true }) tickerContainer!: ElementRef;
+
     portfolioData: PortfolioResponse | null = null;
     loading = true;
     currentDate = new Date();
@@ -92,6 +94,86 @@ export class AppComponent implements OnInit, OnDestroy {
         }
         if (this.exchangeInterval) {
             clearInterval(this.exchangeInterval);
+        }
+    }
+
+    ngAfterViewInit() {
+        if (this.tickerContainer) {
+            const script = document.createElement('script');
+            script.type = 'text/javascript';
+            script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
+            script.async = true;
+            script.innerHTML = JSON.stringify({
+                "symbols": [
+                    { "description": "S&P 500", "proName": "FOREXCOM:SPXUSD" },
+                    { "description": "Nasdaq 100", "proName": "FOREXCOM:NSXUSD" },
+                    { "description": "Dow Jones", "proName": "FOREXCOM:DJI" },
+                    { "description": "Oro", "proName": "OANDA:XAUUSD" },
+                    { "description": "Petróleo", "proName": "TVC:USOIL" },
+                    { "description": "Plata", "proName": "OANDA:XAGUSD" },
+                    { "description": "BTC", "proName": "BINANCE:BTCUSDT" },
+                    { "description": "ETH", "proName": "BINANCE:ETHUSDT" },
+                    { "description": "SOL", "proName": "BINANCE:SOLUSDT" },
+                    { "description": "XRP", "proName": "BINANCE:XRPUSDT" },
+                    { "description": "ADA", "proName": "BINANCE:ADAUSDT" },
+                    { "description": "Apple", "proName": "NASDAQ:AAPL" },
+                    { "description": "Microsoft", "proName": "NASDAQ:MSFT" },
+                    { "description": "Nvidia", "proName": "NASDAQ:NVDA" },
+                    { "description": "Amazon", "proName": "NASDAQ:AMZN" },
+                    { "description": "Meta", "proName": "NASDAQ:META" },
+                    { "description": "Alphabet A", "proName": "NASDAQ:GOOGL" },
+                    { "description": "Alphabet C", "proName": "NASDAQ:GOOG" },
+                    { "description": "Berkshire", "proName": "NYSE:BRK.B" },
+                    { "description": "Eli Lilly", "proName": "NYSE:LLY" },
+                    { "description": "Broadcom", "proName": "NASDAQ:AVGO" },
+                    { "description": "Tesla", "proName": "NASDAQ:TSLA" },
+                    { "description": "JPMorgan", "proName": "NYSE:JPM" },
+                    { "description": "UnitedHealth", "proName": "NYSE:UNH" },
+                    { "description": "Visa", "proName": "NYSE:V" },
+                    { "description": "Exxon", "proName": "NYSE:XOM" },
+                    { "description": "Mastercard", "proName": "NYSE:MA" },
+                    { "description": "Costco", "proName": "NASDAQ:COST" },
+                    { "description": "Home Depot", "proName": "NYSE:HD" },
+                    { "description": "P&G", "proName": "NYSE:PG" },
+                    { "description": "Netflix", "proName": "NASDAQ:NFLX" },
+                    { "description": "J&J", "proName": "NYSE:JNJ" },
+                    { "description": "AbbVie", "proName": "NYSE:ABBV" },
+                    { "description": "Bank of America", "proName": "NYSE:BAC" },
+                    { "description": "Salesforce", "proName": "NYSE:CRM" },
+                    { "description": "Walmart", "proName": "NYSE:WMT" },
+                    { "description": "Chevron", "proName": "NYSE:CVX" },
+                    { "description": "Coca-Cola", "proName": "NYSE:KO" },
+                    { "description": "Merck", "proName": "NYSE:MRK" },
+                    { "description": "PepsiCo", "proName": "NASDAQ:PEP" },
+                    { "description": "Oracle", "proName": "NYSE:ORCL" },
+                    { "description": "Adobe", "proName": "NASDAQ:ADBE" },
+                    { "description": "Thermo Fisher", "proName": "NYSE:TMO" },
+                    { "description": "Linde", "proName": "NASDAQ:LIN" },
+                    { "description": "McDonald's", "proName": "NYSE:MCD" },
+                    { "description": "Cisco", "proName": "NASDAQ:CSCO" },
+                    { "description": "Abbott", "proName": "NYSE:ABT" },
+                    { "description": "Accenture", "proName": "NYSE:ACN" },
+                    { "description": "GE Aerospace", "proName": "NYSE:GE" },
+                    { "description": "Caterpillar", "proName": "NYSE:CAT" },
+                    { "description": "Danaher", "proName": "NYSE:DHR" },
+                    { "description": "Verizon", "proName": "NYSE:VZ" },
+                    { "description": "Intuit", "proName": "NASDAQ:INTU" },
+                    { "description": "Qualcomm", "proName": "NASDAQ:QCOM" },
+                    { "description": "IBM", "proName": "NYSE:IBM" },
+                    { "description": "Texas Instr", "proName": "NASDAQ:TXN" },
+                    { "description": "Applied Mat", "proName": "NASDAQ:AMAT" },
+                    { "description": "Amgen", "proName": "NASDAQ:AMGN" },
+                    { "description": "Pfizer", "proName": "NYSE:PFE" },
+                    { "description": "Intel", "proName": "NASDAQ:INTC" },
+                    { "description": "Goldman Sachs", "proName": "NYSE:GS" }
+                ],
+                "showSymbolLogo": true,
+                "isTransparent": true,
+                "displayMode": "adaptive",
+                "colorTheme": "dark",
+                "locale": "es"
+            });
+            this.tickerContainer.nativeElement.appendChild(script);
         }
     }
 
