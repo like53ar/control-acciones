@@ -108,7 +108,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
                     { "description": "S&P 500", "proName": "FOREXCOM:SPXUSD" },
                     { "description": "Nasdaq 100", "proName": "FOREXCOM:NSXUSD" },
                     { "description": "Dow Jones", "proName": "FOREXCOM:DJI" },
-                    { "description": "Russell 2000", "proName": "CME_MINI:RTY1!" },
+                    { "description": "Russell 2000", "proName": "AMEX:IWM" },
                     { "description": "USD/MXN", "proName": "OANDA:USDMXN" },
                     { "description": "USD/BRL", "proName": "FX_IDC:USDBRL" },
                     { "description": "USD/ZAR", "proName": "OANDA:USDZAR" },
