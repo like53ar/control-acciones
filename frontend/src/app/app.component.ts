@@ -140,7 +140,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
                     { "description": "AbbVie", "proName": "NYSE:ABBV" },
                     { "description": "Bank of America", "proName": "NYSE:BAC" },
                     { "description": "Salesforce", "proName": "NYSE:CRM" },
-                    { "description": "Walmart", "proName": "NYSE:WMT" },
+                    { "description": "Walmart", "proName": "WMT" },
                     { "description": "Chevron", "proName": "NYSE:CVX" },
                     { "description": "Coca-Cola", "proName": "NYSE:KO" },
                     { "description": "Merck", "proName": "NYSE:MRK" },
