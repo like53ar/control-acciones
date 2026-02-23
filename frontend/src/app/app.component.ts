@@ -22,6 +22,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     portfolioData: PortfolioResponse | null = null;
     loading = true;
     currentDate = new Date();
+    isUpdatingData = false;
 
     // Resumen Agrupado
     groupedAssets: any[] = [];
@@ -40,7 +41,6 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     exchangeRateLastUpdated: string | null = null;
     isExchangeRateOutdated: boolean = false;
     private exchangeInterval: any;
-    private dataInterval: any;
 
     // Formulario de Inversión
     newItem = {
@@ -66,10 +66,6 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
             this.fetchExchangeRate();
             this.checkExchangeRateOutdated();
         }, 1200000); // Actualizar y chequear cada 20 minutos
-
-        this.dataInterval = setInterval(() => {
-            this.fetchData();
-        }, 180000); // Actualizar datos cada 3 minutos
 
         // Listener para buscar el nombre de la empresa sin saturar la API
         this.symbolSubscription = this.symbolSubject.pipe(
@@ -100,9 +96,6 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         }
         if (this.exchangeInterval) {
             clearInterval(this.exchangeInterval);
-        }
-        if (this.dataInterval) {
-            clearInterval(this.dataInterval);
         }
     }
 
@@ -234,15 +227,18 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         if (!this.portfolioData) {
             this.loading = true; // Solo mostrar esqueleto de carga la primera vez
         }
+        this.isUpdatingData = true;
         this.portfolioService.getPortfolio().subscribe({
             next: (data) => {
                 this.portfolioData = data;
                 this.processGroupedAssets(data.data);
                 this.loading = false;
+                this.isUpdatingData = false;
             },
             error: (err) => {
                 console.error('Error al obtener portafolio', err);
                 this.loading = false;
+                this.isUpdatingData = false;
             }
         });
     }
