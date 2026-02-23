@@ -69,7 +69,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 
         this.dataInterval = setInterval(() => {
             this.fetchData();
-        }, 300000); // Actualizar datos cada 5 minutos
+        }, 180000); // Actualizar datos cada 3 minutos
 
         // Listener para buscar el nombre de la empresa sin saturar la API
         this.symbolSubscription = this.symbolSubject.pipe(
