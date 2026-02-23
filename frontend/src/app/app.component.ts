@@ -40,6 +40,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     exchangeRateLastUpdated: string | null = null;
     isExchangeRateOutdated: boolean = false;
     private exchangeInterval: any;
+    private dataInterval: any;
 
     // Formulario de Inversión
     newItem = {
@@ -62,8 +63,13 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         this.fetchExchangeRate();
 
         this.exchangeInterval = setInterval(() => {
+            this.fetchExchangeRate();
             this.checkExchangeRateOutdated();
-        }, 60000); // Chequear cada minuto si se desactualiza
+        }, 1200000); // Actualizar y chequear cada 20 minutos
+
+        this.dataInterval = setInterval(() => {
+            this.fetchData();
+        }, 300000); // Actualizar datos cada 5 minutos
 
         // Listener para buscar el nombre de la empresa sin saturar la API
         this.symbolSubscription = this.symbolSubject.pipe(
@@ -95,110 +101,121 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         if (this.exchangeInterval) {
             clearInterval(this.exchangeInterval);
         }
+        if (this.dataInterval) {
+            clearInterval(this.dataInterval);
+        }
     }
 
     ngAfterViewInit() {
         if (this.tickerContainer) {
+            const symbolsList = [
+                { "description": "S&P 500", "proName": "FOREXCOM:SPXUSD" },
+                { "description": "Nasdaq 100", "proName": "FOREXCOM:NSXUSD" },
+                { "description": "Dow Jones", "proName": "FOREXCOM:DJI" },
+                { "description": "Russell 2000", "proName": "AMEX:IWM" },
+                { "description": "Merval", "proName": "BCBA:IMV" },
+                { "description": "Nikkei 225", "proName": "JP225" },
+                { "description": "DAX", "proName": "XETR:DAX" },
+                { "description": "Soja", "proName": "ZS" },
+                { "description": "Trigo", "proName": "ZW" },
+                { "description": "Maíz", "proName": "ZC" },
+                { "description": "Café", "proName": "KC" },
+                { "description": "Cacao", "proName": "CC" },
+                { "description": "Azúcar", "proName": "SB" },
+                { "description": "Jugo de Naranja", "proName": "OJ" },
+                { "description": "Petróleo WTI", "proName": "CL" },
+                { "description": "Petróleo Brent", "proName": "BZ" },
+                { "description": "Gas Natural", "proName": "NG" },
+                { "description": "Gasolina", "proName": "RB" },
+                { "description": "Aceite Calefacción", "proName": "HO" },
+                { "description": "Carbón", "proName": "MTF" },
+                { "description": "USD/MXN", "proName": "OANDA:USDMXN" },
+                { "description": "USD/BRL", "proName": "FX_IDC:USDBRL" },
+                { "description": "USD/ZAR", "proName": "OANDA:USDZAR" },
+                { "description": "USD/TRY", "proName": "OANDA:USDTRY" },
+                { "description": "USD/SGD", "proName": "OANDA:USDSGD" },
+                { "description": "USD/NOK", "proName": "OANDA:USDNOK" },
+                { "description": "USD/HKD", "proName": "OANDA:USDHKD" },
+                { "description": "USD/CAD", "proName": "OANDA:USDCAD" },
+                { "description": "EUR/USD", "proName": "OANDA:EURUSD" },
+                { "description": "EUR/GBP", "proName": "OANDA:EURGBP" },
+                { "description": "EUR/TRY", "proName": "OANDA:EURTRY" },
+                { "description": "Oro", "proName": "OANDA:XAUUSD" },
+                { "description": "Petróleo", "proName": "TVC:USOIL" },
+                { "description": "Plata", "proName": "OANDA:XAGUSD" },
+                { "description": "BTC", "proName": "BINANCE:BTCUSDT" },
+                { "description": "ETH", "proName": "BINANCE:ETHUSDT" },
+                { "description": "SOL", "proName": "BINANCE:SOLUSDT" },
+                { "description": "XRP", "proName": "BINANCE:XRPUSDT" },
+                { "description": "ADA", "proName": "BINANCE:ADAUSDT" },
+                { "description": "Globant", "proName": "NYSE:GLOB" },
+                { "description": "Vista Energy", "proName": "NYSE:VIST" },
+                { "description": "Edenor", "proName": "NYSE:EDN" },
+                { "description": "YPF", "proName": "NYSE:YPF" },
+                { "description": "Apple", "proName": "NASDAQ:AAPL" },
+                { "description": "Microsoft", "proName": "NASDAQ:MSFT" },
+                { "description": "Nvidia", "proName": "NASDAQ:NVDA" },
+                { "description": "Amazon", "proName": "NASDAQ:AMZN" },
+                { "description": "Meta", "proName": "NASDAQ:META" },
+                { "description": "Alphabet A", "proName": "NASDAQ:GOOGL" },
+                { "description": "Alphabet C", "proName": "NASDAQ:GOOG" },
+                { "description": "Berkshire", "proName": "NYSE:BRK.B" },
+                { "description": "Eli Lilly", "proName": "NYSE:LLY" },
+                { "description": "Broadcom", "proName": "NASDAQ:AVGO" },
+                { "description": "Tesla", "proName": "NASDAQ:TSLA" },
+                { "description": "JPMorgan", "proName": "NYSE:JPM" },
+                { "description": "UnitedHealth", "proName": "NYSE:UNH" },
+                { "description": "Visa", "proName": "NYSE:V" },
+                { "description": "Exxon", "proName": "NYSE:XOM" },
+                { "description": "Mastercard", "proName": "NYSE:MA" },
+                { "description": "Costco", "proName": "NASDAQ:COST" },
+                { "description": "Home Depot", "proName": "NYSE:HD" },
+                { "description": "P&G", "proName": "NYSE:PG" },
+                { "description": "Netflix", "proName": "NASDAQ:NFLX" },
+                { "description": "J&J", "proName": "NYSE:JNJ" },
+                { "description": "AbbVie", "proName": "NYSE:ABBV" },
+                { "description": "Bank of America", "proName": "NYSE:BAC" },
+                { "description": "Salesforce", "proName": "NYSE:CRM" },
+                { "description": "Walmart", "proName": "WMT" },
+                { "description": "Chevron", "proName": "NYSE:CVX" },
+                { "description": "Coca-Cola", "proName": "NYSE:KO" },
+                { "description": "Merck", "proName": "NYSE:MRK" },
+                { "description": "PepsiCo", "proName": "NASDAQ:PEP" },
+                { "description": "Oracle", "proName": "NYSE:ORCL" },
+                { "description": "Adobe", "proName": "NASDAQ:ADBE" },
+                { "description": "Thermo Fisher", "proName": "NYSE:TMO" },
+                { "description": "Linde", "proName": "NASDAQ:LIN" },
+                { "description": "McDonald's", "proName": "NYSE:MCD" },
+                { "description": "Cisco", "proName": "NASDAQ:CSCO" },
+                { "description": "Abbott", "proName": "NYSE:ABT" },
+                { "description": "Accenture", "proName": "NYSE:ACN" },
+                { "description": "GE Aerospace", "proName": "NYSE:GE" },
+                { "description": "Caterpillar", "proName": "NYSE:CAT" },
+                { "description": "Danaher", "proName": "NYSE:DHR" },
+                { "description": "Verizon", "proName": "NYSE:VZ" },
+                { "description": "Intuit", "proName": "NASDAQ:INTU" },
+                { "description": "Qualcomm", "proName": "NASDAQ:QCOM" },
+                { "description": "IBM", "proName": "NYSE:IBM" },
+                { "description": "Texas Instr", "proName": "NASDAQ:TXN" },
+                { "description": "Applied Mat", "proName": "NASDAQ:AMAT" },
+                { "description": "Amgen", "proName": "NASDAQ:AMGN" },
+                { "description": "Pfizer", "proName": "NYSE:PFE" },
+                { "description": "Intel", "proName": "NASDAQ:INTC" },
+                { "description": "Goldman Sachs", "proName": "NYSE:GS" }
+            ];
+
+            // Mezclar el array aleatoriamente para que comience en distintos activos cada vez
+            for (let i = symbolsList.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [symbolsList[i], symbolsList[j]] = [symbolsList[j], symbolsList[i]];
+            }
+
             const script = document.createElement('script');
             script.type = 'text/javascript';
             script.src = 'https://s3.tradingview.com/external-embedding/embed-widget-ticker-tape.js';
             script.async = true;
             script.innerHTML = JSON.stringify({
-                "symbols": [
-                    { "description": "S&P 500", "proName": "FOREXCOM:SPXUSD" },
-                    { "description": "Nasdaq 100", "proName": "FOREXCOM:NSXUSD" },
-                    { "description": "Dow Jones", "proName": "FOREXCOM:DJI" },
-                    { "description": "Russell 2000", "proName": "AMEX:IWM" },
-                    { "description": "Merval", "proName": "BCBA:IMV" },
-                    { "description": "Nikkei 225", "proName": "JP225" },
-                    { "description": "DAX", "proName": "XETR:DAX" },
-                    { "description": "Soja", "proName": "ZS" },
-                    { "description": "Trigo", "proName": "ZW" },
-                    { "description": "Maíz", "proName": "ZC" },
-                    { "description": "Café", "proName": "KC" },
-                    { "description": "Cacao", "proName": "CC" },
-                    { "description": "Azúcar", "proName": "SB" },
-                    { "description": "Jugo de Naranja", "proName": "OJ" },
-                    { "description": "Petróleo WTI", "proName": "CL" },
-                    { "description": "Petróleo Brent", "proName": "BZ" },
-                    { "description": "Gas Natural", "proName": "NG" },
-                    { "description": "Gasolina", "proName": "RB" },
-                    { "description": "Aceite Calefacción", "proName": "HO" },
-                    { "description": "Carbón", "proName": "MTF" },
-                    { "description": "USD/MXN", "proName": "OANDA:USDMXN" },
-                    { "description": "USD/BRL", "proName": "FX_IDC:USDBRL" },
-                    { "description": "USD/ZAR", "proName": "OANDA:USDZAR" },
-                    { "description": "USD/TRY", "proName": "OANDA:USDTRY" },
-                    { "description": "USD/SGD", "proName": "OANDA:USDSGD" },
-                    { "description": "USD/NOK", "proName": "OANDA:USDNOK" },
-                    { "description": "USD/HKD", "proName": "OANDA:USDHKD" },
-                    { "description": "USD/CAD", "proName": "OANDA:USDCAD" },
-                    { "description": "EUR/USD", "proName": "OANDA:EURUSD" },
-                    { "description": "EUR/GBP", "proName": "OANDA:EURGBP" },
-                    { "description": "EUR/TRY", "proName": "OANDA:EURTRY" },
-                    { "description": "Oro", "proName": "OANDA:XAUUSD" },
-                    { "description": "Petróleo", "proName": "TVC:USOIL" },
-                    { "description": "Plata", "proName": "OANDA:XAGUSD" },
-                    { "description": "BTC", "proName": "BINANCE:BTCUSDT" },
-                    { "description": "ETH", "proName": "BINANCE:ETHUSDT" },
-                    { "description": "SOL", "proName": "BINANCE:SOLUSDT" },
-                    { "description": "XRP", "proName": "BINANCE:XRPUSDT" },
-                    { "description": "ADA", "proName": "BINANCE:ADAUSDT" },
-                    { "description": "Globant", "proName": "NYSE:GLOB" },
-                    { "description": "Vista Energy", "proName": "NYSE:VIST" },
-                    { "description": "Edenor", "proName": "NYSE:EDN" },
-                    { "description": "YPF", "proName": "NYSE:YPF" },
-                    { "description": "Apple", "proName": "NASDAQ:AAPL" },
-                    { "description": "Microsoft", "proName": "NASDAQ:MSFT" },
-                    { "description": "Nvidia", "proName": "NASDAQ:NVDA" },
-                    { "description": "Amazon", "proName": "NASDAQ:AMZN" },
-                    { "description": "Meta", "proName": "NASDAQ:META" },
-                    { "description": "Alphabet A", "proName": "NASDAQ:GOOGL" },
-                    { "description": "Alphabet C", "proName": "NASDAQ:GOOG" },
-                    { "description": "Berkshire", "proName": "NYSE:BRK.B" },
-                    { "description": "Eli Lilly", "proName": "NYSE:LLY" },
-                    { "description": "Broadcom", "proName": "NASDAQ:AVGO" },
-                    { "description": "Tesla", "proName": "NASDAQ:TSLA" },
-                    { "description": "JPMorgan", "proName": "NYSE:JPM" },
-                    { "description": "UnitedHealth", "proName": "NYSE:UNH" },
-                    { "description": "Visa", "proName": "NYSE:V" },
-                    { "description": "Exxon", "proName": "NYSE:XOM" },
-                    { "description": "Mastercard", "proName": "NYSE:MA" },
-                    { "description": "Costco", "proName": "NASDAQ:COST" },
-                    { "description": "Home Depot", "proName": "NYSE:HD" },
-                    { "description": "P&G", "proName": "NYSE:PG" },
-                    { "description": "Netflix", "proName": "NASDAQ:NFLX" },
-                    { "description": "J&J", "proName": "NYSE:JNJ" },
-                    { "description": "AbbVie", "proName": "NYSE:ABBV" },
-                    { "description": "Bank of America", "proName": "NYSE:BAC" },
-                    { "description": "Salesforce", "proName": "NYSE:CRM" },
-                    { "description": "Walmart", "proName": "WMT" },
-                    { "description": "Chevron", "proName": "NYSE:CVX" },
-                    { "description": "Coca-Cola", "proName": "NYSE:KO" },
-                    { "description": "Merck", "proName": "NYSE:MRK" },
-                    { "description": "PepsiCo", "proName": "NASDAQ:PEP" },
-                    { "description": "Oracle", "proName": "NYSE:ORCL" },
-                    { "description": "Adobe", "proName": "NASDAQ:ADBE" },
-                    { "description": "Thermo Fisher", "proName": "NYSE:TMO" },
-                    { "description": "Linde", "proName": "NASDAQ:LIN" },
-                    { "description": "McDonald's", "proName": "NYSE:MCD" },
-                    { "description": "Cisco", "proName": "NASDAQ:CSCO" },
-                    { "description": "Abbott", "proName": "NYSE:ABT" },
-                    { "description": "Accenture", "proName": "NYSE:ACN" },
-                    { "description": "GE Aerospace", "proName": "NYSE:GE" },
-                    { "description": "Caterpillar", "proName": "NYSE:CAT" },
-                    { "description": "Danaher", "proName": "NYSE:DHR" },
-                    { "description": "Verizon", "proName": "NYSE:VZ" },
-                    { "description": "Intuit", "proName": "NASDAQ:INTU" },
-                    { "description": "Qualcomm", "proName": "NASDAQ:QCOM" },
-                    { "description": "IBM", "proName": "NYSE:IBM" },
-                    { "description": "Texas Instr", "proName": "NASDAQ:TXN" },
-                    { "description": "Applied Mat", "proName": "NASDAQ:AMAT" },
-                    { "description": "Amgen", "proName": "NASDAQ:AMGN" },
-                    { "description": "Pfizer", "proName": "NYSE:PFE" },
-                    { "description": "Intel", "proName": "NASDAQ:INTC" },
-                    { "description": "Goldman Sachs", "proName": "NYSE:GS" }
-                ],
+                "symbols": symbolsList,
                 "showSymbolLogo": true,
                 "isTransparent": true,
                 "displayMode": "adaptive",
@@ -262,7 +279,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         const now = new Date().getTime();
         const diffMinutes = (now - lastUpdated) / (1000 * 60);
 
-        this.isExchangeRateOutdated = diffMinutes > 5;
+        this.isExchangeRateOutdated = diffMinutes > 20;
     }
 
     processGroupedAssets(assets: any[]) {
