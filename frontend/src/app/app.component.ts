@@ -593,7 +593,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
             return;
         }
 
-        const headers = ['Activo', 'Empresa', 'Cantidad', 'Precio Compra', 'Precio Actual', 'Total Invertido', 'Valor Actual', 'Ganancia', 'Fecha Compra'];
+        const headers = ['Activo', 'Empresa', 'Cantidad', 'Precio Compra', 'Precio Actual', 'Total Invertido', 'Valor Actual', 'Ganancia', 'Variación %', 'Fecha Compra'];
 
         // Escape helper for CSV cells
         const escapeCSV = (field: any) => {
@@ -615,6 +615,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
             escapeCSV(item.TotalInvested),
             escapeCSV(item.CurrentTotal),
             escapeCSV(item.Gain),
+            escapeCSV(item.BuyPrice ? (item.Gain >= 0 ? '+' : '') + ((item.CurrentPrice / item.BuyPrice - 1) * 100).toFixed(2) + '%' : '0%'),
             escapeCSV(item.BuyDate || '')
         ]);
 

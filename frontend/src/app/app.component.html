@@ -282,6 +282,7 @@
                       <th class="pb-4 font-normal">Precio Actual</th>
                       <th class="pb-4 font-normal text-center">Días transcurridos</th>
                       <th class="pb-4 font-normal text-right pr-2">Ganancia</th>
+                      <th class="pb-4 font-normal text-right pr-2">Variación %</th>
                       <th class="pb-4 font-normal"></th>
                     </tr>
                   </thead>
@@ -311,6 +312,11 @@
                       <td class="py-5 text-right pr-4 font-medium"
                         [ngClass]="{'text-green-400': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
                         {{ item.Gain >= 0 ? '+' : '' }}{{ item.Gain | currency }}
+                      </td>
+                      <td class="py-5 text-right pr-4 font-medium"
+                        [ngClass]="{'text-green-400': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
+                        {{ item.Gain >= 0 ? '+' : '' }}{{ (item.BuyPrice ? (item.CurrentPrice / item.BuyPrice - 1) : 0)
+                        | percent:'1.2-2' }}
                       </td>
                       <td class="py-5 text-right pr-2">
                         <div class="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-all">
