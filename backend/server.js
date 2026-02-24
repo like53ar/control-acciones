@@ -200,26 +200,60 @@ app.delete('/api/portfolio/:id', (req, res) => {
     });
 });
 
-// POST /api/portfolio/:id/sell - Vender posición
+// POST /api/portfolio/:id/sell - Vender posición (soporta ventas parciales)
 app.post('/api/portfolio/:id/sell', (req, res) => {
     const id = req.params.id;
-    const { sell_price, sell_date } = req.body;
+    const { sell_price, sell_date, quantity: sell_quantity } = req.body;
 
-    if (sell_price === undefined || !sell_date) {
-        return res.status(400).json({ error: 'Faltan datos de venta (sell_price, sell_date)' });
+    if (sell_price === undefined || !sell_date || !sell_quantity) {
+        return res.status(400).json({ error: 'Faltan datos de venta (sell_price, sell_date, quantity)' });
     }
 
-    db.run(
-        "UPDATE portfolio SET status = 'CLOSED', sell_price = ?, sell_date = ? WHERE id = ?",
-        [sell_price, sell_date, id],
-        function (err) {
-            if (err) {
-                return res.status(500).json({ error: err.message });
-            }
-            res.json({ message: 'Posición vendida exitosamente', changes: this.changes });
+    // 1. Obtener la posición actual
+    db.get("SELECT * FROM portfolio WHERE id = ?", [id], (err, row) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (!row) return res.status(404).json({ error: 'Posición no encontrada' });
+        if (row.status === 'CLOSED') return res.status(400).json({ error: 'La posición ya está cerrada' });
+
+        const currentQuantity = row.quantity;
+        const sellQty = parseFloat(sell_quantity);
+
+        if (sellQty > currentQuantity) {
+            return res.status(400).json({ error: 'No puedes vender más de lo que posees' });
         }
-    );
+
+        if (sellQty < currentQuantity) {
+            // VENTA PARCIAL
+            const remainingQty = currentQuantity - sellQty;
+
+            db.serialize(() => {
+                // A. Actualizar posición original con la cantidad restante
+                db.run("UPDATE portfolio SET quantity = ? WHERE id = ?", [remainingQty, id]);
+
+                // B. Insertar nueva posición cerrada con la cantidad vendida
+                db.run(
+                    "INSERT INTO portfolio (symbol, company, quantity, buy_price, buy_date, current_price, status, sell_price, sell_date) VALUES (?, ?, ?, ?, ?, ?, 'CLOSED', ?, ?)",
+                    [row.symbol, row.company, sellQty, row.buy_price, row.buy_date, row.current_price, sell_price, sell_date],
+                    function (err) {
+                        if (err) return res.status(500).json({ error: err.message });
+                        res.json({ message: 'Venta parcial realizada con éxito', id: this.lastID, partial: true });
+                    }
+                );
+            });
+        } else {
+            // VENTA TOTAL (Igual que antes pero mantenemos consistencia)
+            db.run(
+                "UPDATE portfolio SET status = 'CLOSED', sell_price = ?, sell_date = ? WHERE id = ?",
+                [sell_price, sell_date, id],
+                function (err) {
+                    if (err) return res.status(500).json({ error: err.message });
+                    res.json({ message: 'Posición vendida exitosamente (Venta Total)', changes: this.changes });
+                }
+            );
+        }
+    });
 });
+
 
 // Healthcheck
 app.get('/api/ping', (req, res) => {

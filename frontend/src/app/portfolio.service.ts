@@ -50,9 +50,10 @@ export class PortfolioService {
         return this.http.put(`${this.apiUrl}/${id}`, payload);
     }
 
-    sellPortfolioItem(id: number, payload: { sell_price: number, sell_date: string }): Observable<any> {
+    sellPortfolioItem(id: number, payload: { sell_price: number, sell_date: string, quantity: number }): Observable<any> {
         return this.http.post(`${this.apiUrl}/${id}/sell`, payload);
     }
+
 
     getQuote(symbol: string): Observable<any> {
         // En base a la URL actual 'http://localhost:8000/api/portfolio'

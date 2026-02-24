@@ -439,9 +439,15 @@
                 </p>
 
                 <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
+                  translate="no">CANTIDAD A VENDER</label>
+                <input type="number" [(ngModel)]="sellQuantity" step="any" [max]="itemToSell?.Quantity" placeholder="0"
+                  class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-3.5 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner mb-4">
+
+                <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
                   translate="no">PRECIO DE VENTA ($)</label>
                 <input type="number" [(ngModel)]="sellPrice" step="any" placeholder="0.00"
                   class="w-full bg-zen-lightest/50 text-zen-darkest placeholder-zen-dark/40 border border-zen-medium/30 rounded-2xl px-5 py-3.5 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none transition-all shadow-inner mb-4">
+
 
                 <label class="block text-[10px] uppercase tracking-widest text-zen-dark mb-2 ml-1 font-medium"
                   translate="no">FECHA DE VENTA</label>

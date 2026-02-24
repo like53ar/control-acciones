@@ -388,6 +388,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     isSelling = false;
     sellPrice: number | null = null;
     sellDate: string = new Date().toISOString().split('T')[0];
+    sellQuantity: number | null = null;
+
+
 
     // Modal de Edición
     showEditModal = false;
@@ -409,8 +412,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         this.itemToSell = item;
         this.sellPrice = item.CurrentPrice;
         this.sellDate = new Date().toISOString().split('T')[0];
+        this.sellQuantity = item.Quantity; // Default to full quantity
         this.showSellModal = true;
     }
+
 
     cancelSell() {
         this.showSellModal = false;
@@ -418,13 +423,20 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     executeSell() {
-        if (!this.itemToSell || !this.sellPrice || !this.sellDate) return;
+        if (!this.itemToSell || !this.sellPrice || !this.sellDate || !this.sellQuantity) return;
+
+        if (this.sellQuantity > this.itemToSell.Quantity) {
+            alert('No puedes vender más de lo que posees.');
+            return;
+        }
 
         this.isSelling = true;
         this.portfolioService.sellPortfolioItem(this.itemToSell.id, {
             sell_price: this.sellPrice,
-            sell_date: this.sellDate
+            sell_date: this.sellDate,
+            quantity: this.sellQuantity
         }).subscribe({
+
             next: () => {
                 this.portfolioService.getPortfolio().subscribe(data => {
                     this.portfolioData = data;
