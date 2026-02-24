@@ -218,6 +218,22 @@
                 }}
               </p>
             </div>
+
+            <!-- Ganancias Realizadas -->
+            <div
+              class="bg-zen-lightest p-6 xl:p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300 relative overflow-hidden min-w-0">
+              <div class="absolute inset-0 bg-blue-500/10" *ngIf="portfolioData.summary.total_realized_gain >= 0"></div>
+              <div class="absolute inset-0 bg-red-500/10" *ngIf="portfolioData.summary.total_realized_gain < 0"></div>
+              <p
+                class="text-[10px] uppercase tracking-widest text-zen-dark mb-2 xl:mb-3 relative z-10 text-center truncate w-full">
+                Ganancias Realizadas</p>
+              <p class="text-2xl xl:text-3xl font-light relative z-10 truncate w-full text-center"
+                [ngClass]="{'text-blue-400': portfolioData.summary.total_realized_gain >= 0, 'text-red-400': portfolioData.summary.total_realized_gain < 0}">
+                {{ portfolioData.summary.total_realized_gain >= 0 ? '+' : '' }}{{
+                portfolioData.summary.total_realized_gain | currency }}
+              </p>
+            </div>
+
           </div>
         </div>
       </div> <!-- Cierre Top Section -->

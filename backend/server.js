@@ -34,10 +34,9 @@ const db = new sqlite3.Database(dbPath, (err) => {
 
 // GET /api/portfolio - Obtener cartera y actualizar precios
 app.get('/api/portfolio', async (req, res) => {
+    // 1. Obtener posiciones abiertas
     db.all("SELECT * FROM portfolio WHERE status = 'OPEN'", async (err, rows) => {
-        if (err) {
-            return res.status(500).json({ error: err.message });
-        }
+        if (err) return res.status(500).json({ error: err.message });
 
         let totalInvested = 0;
         let totalValue = 0;
@@ -49,7 +48,6 @@ app.get('/api/portfolio', async (req, res) => {
                 const quote = await yahooFinance.quote(row.symbol);
                 if (quote && quote.regularMarketPrice) {
                     currentPrice = quote.regularMarketPrice;
-                    // Actualizamos la DB asíncronamente en segundo plano
                     db.run('UPDATE portfolio SET current_price = ? WHERE id = ?', [currentPrice, row.id]);
                 }
             } catch (e) {
@@ -64,7 +62,6 @@ app.get('/api/portfolio', async (req, res) => {
             totalValue += current_total;
             totalGain += gain;
 
-            // Adaptar el formato de salida para que coincida con el frontend hecho anteriormente
             return {
                 id: row.id,
                 Symbol: row.symbol,
@@ -79,16 +76,23 @@ app.get('/api/portfolio', async (req, res) => {
             };
         }));
 
-        res.json({
-            data: data,
-            summary: {
-                total_invested: totalInvested,
-                total_value: totalValue,
-                total_gain: totalGain
-            }
+        // 2. Calcular Ganancias Realizadas (de posiciones CLOSED)
+        db.get("SELECT SUM((sell_price - buy_price) * quantity) as realizedGain FROM portfolio WHERE status = 'CLOSED'", (err, result) => {
+            const totalRealizedGain = (result && result.realizedGain) ? result.realizedGain : 0;
+
+            res.json({
+                data: data,
+                summary: {
+                    total_invested: totalInvested,
+                    total_value: totalValue,
+                    total_gain: totalGain,
+                    total_realized_gain: totalRealizedGain
+                }
+            });
         });
     });
 });
+
 
 // GET /api/quote/:symbol - Obtener nombre de la empresa y precio al instante
 app.get('/api/quote/:symbol', async (req, res) => {

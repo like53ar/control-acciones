@@ -19,7 +19,9 @@ export interface PortfolioSummary {
     total_invested: number;
     total_value: number;
     total_gain: number;
+    total_realized_gain: number;
 }
+
 
 export interface PortfolioResponse {
     data: PortfolioItem[];
