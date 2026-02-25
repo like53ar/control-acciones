@@ -1,20 +1,40 @@
-<div class="min-h-screen bg-zen-light flex flex-col justify-start py-6 px-4 sm:px-6 lg:px-8 font-sans">
+<div class="min-h-screen bg-zen-light flex flex-col justify-start py-12 px-4 sm:px-6 lg:px-8 font-sans zen-transition">
+
+  <!-- Floating Toggle for Focused Mode -->
+  <button (click)="toggleFocusedMode()"
+    class="fixed bottom-8 right-8 z-50 p-4 rounded-full bg-[#1e293b]/80 backdrop-blur-md border border-zen-medium/40 text-zen-accent hover:text-white hover:bg-zen-accent/20 transition-all shadow-2xl group"
+    [title]="isFocusedMode ? 'Mostrar todo' : 'Modo Enfocado'">
+    <svg *ngIf="!isFocusedMode" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+    </svg>
+    <svg *ngIf="isFocusedMode" class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.888 9.888L2 2m20 20L14.111 14.111" />
+    </svg>
+    <span class="absolute right-full mr-4 px-3 py-1 bg-zen-lightest text-[10px] uppercase tracking-widest text-zen-text rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap border border-zen-medium/30">
+      {{ isFocusedMode ? 'Salir del Modo Zen' : 'Activar Modo Zen' }}
+    </span>
+  </button>
+
 
   <!-- Ticker Tape -->
-  <div
-    class="w-full max-w-7xl mx-auto mb-4 rounded-xl overflow-hidden shadow border border-zen-medium/30 bg-[#1e293b]/50 backdrop-blur-sm h-[46px] relative z-10">
+  <div [ngClass]="{'focused-fade-exit': isFocusedMode, 'focused-fade-enter': !isFocusedMode}"
+    class="w-full max-w-7xl mx-auto mb-8 rounded-xl overflow-hidden shadow border border-zen-medium/30 bg-[#1e293b]/50 backdrop-blur-sm h-[46px] relative z-10 zen-transition">
     <div class="tradingview-widget-container" #tickerContainer>
       <div class="tradingview-widget-container__widget"></div>
     </div>
   </div>
 
   <!-- Header -->
-  <header class="text-center space-y-3 mt-4 mb-10 w-full max-w-7xl mx-auto">
-    <h1 class="text-5xl font-light tracking-tight text-zen-darkest">Portafolio Zen</h1>
-    <p class="text-zen-accent text-xs tracking-[0.2em] uppercase">Tranquilidad &amp; Control</p>
+  <header [ngClass]="{'focused-fade-exit': isFocusedMode, 'focused-fade-enter': !isFocusedMode}"
+    class="text-center space-y-4 mt-8 mb-16 w-full max-w-7xl mx-auto zen-transition">
+    <h1 class="text-6xl font-extralight tracking-tighter text-zen-darkest">Portafolio Zen</h1>
+    <p class="text-zen-accent text-xs tracking-[0.4em] uppercase opacity-80">Tranquilidad &amp; Control</p>
   </header>
 
-  <div class="max-w-7xl w-full mx-auto flex flex-col gap-12 items-center">
+  <div class="max-w-7xl w-full mx-auto flex flex-col gap-16 items-center">
 
     <!-- Data View -->
     <ng-container *ngIf="!loading && portfolioData">
@@ -23,9 +43,10 @@
       <div class="w-full max-w-7xl flex flex-col lg:flex-row gap-8 items-start">
 
         <!-- Left Sidebar (Exchange Rate) -->
-        <aside class="w-full lg:w-1/4 xl:w-1/5 shrink-0 z-20">
+        <aside [ngClass]="{'hidden lg:hidden': isFocusedMode}"
+          class="w-full lg:w-1/4 xl:w-1/5 shrink-0 z-20 zen-transition">
           <div
-            class="bg-[#1e293b] rounded-[2rem] p-6 shadow-2xl border border-zen-medium/20 relative overflow-hidden sticky top-8">
+            class="bg-[#1e293b] rounded-[2.5rem] p-8 shadow-2xl border border-zen-medium/20 relative overflow-hidden sticky top-8">
             <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
             <div class="relative z-10">
               <h2
@@ -100,11 +121,11 @@
         </aside>
 
         <!-- Right Content (Form + Summary) -->
-        <div class="w-full lg:w-3/4 xl:w-4/5 space-y-12">
+        <div class="w-full space-y-16" [ngClass]="isFocusedMode ? 'lg:w-full' : 'lg:w-3/4 xl:w-4/5'">
 
           <!-- Formulario de Carga Zen -->
-          <div
-            class="bg-[#1e293b] rounded-[2rem] p-8 mb-8 mt-4 shadow-2xl border border-zen-medium/20 transition-all relative overflow-hidden">
+          <div [ngClass]="{'focused-fade-exit': isFocusedMode, 'focused-fade-enter': !isFocusedMode}"
+            class="bg-[#1e293b] rounded-[2.5rem] p-10 mb-8 mt-4 shadow-2xl border border-zen-medium/20 transition-all relative overflow-hidden zen-transition">
 
             <div class="absolute inset-0 bg-gradient-to-br from-white/5 to-transparent pointer-events-none"></div>
 
@@ -176,7 +197,7 @@
           </div>
 
           <!-- Summary Cards Layout -->
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 w-full">
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8 w-full">
             <div
               class="bg-zen-lightest p-6 xl:p-8 rounded-3xl shadow-lg border border-zen-medium flex flex-col items-center justify-center hover:shadow-xl transition-shadow duration-300 relative min-w-0">
               <p class="text-[10px] uppercase tracking-widest text-zen-dark mb-2 xl:mb-3 text-center truncate w-full">
@@ -212,7 +233,7 @@
               <p
                 class="text-[10px] uppercase tracking-widest text-zen-dark mb-2 xl:mb-3 relative z-10 text-center truncate w-full">
                 Rendimiento Total</p>
-              <p class="text-2xl xl:text-3xl font-light relative z-10 truncate w-full text-center"
+              <p class="text-2xl xl:text-3xl font-light relative z-10 truncate w-full text-center zen-price-transition"
                 [ngClass]="{'text-green-400': portfolioData.summary.total_gain >= 0, 'text-red-400': portfolioData.summary.total_gain < 0}">
                 {{ portfolioData.summary.total_gain >= 0 ? '+' : '' }}{{ portfolioData.summary.total_gain | currency
                 }}
@@ -227,7 +248,7 @@
               <p
                 class="text-[10px] uppercase tracking-widest text-zen-dark mb-2 xl:mb-3 relative z-10 text-center truncate w-full">
                 Ganancias Realizadas</p>
-              <p class="text-2xl xl:text-3xl font-light relative z-10 truncate w-full text-center"
+              <p class="text-2xl xl:text-3xl font-light relative z-10 truncate w-full text-center zen-price-transition"
                 [ngClass]="{'text-blue-400': portfolioData.summary.total_realized_gain >= 0, 'text-red-400': portfolioData.summary.total_realized_gain < 0}">
                 {{ portfolioData.summary.total_realized_gain >= 0 ? '+' : '' }}{{
                 portfolioData.summary.total_realized_gain | currency }}
@@ -241,8 +262,8 @@
       <!-- Middle Section: Grouped Assets Summary -->
       <div class="w-full max-w-7xl mt-4 mb-4">
         <div class="bg-[#1e293b] rounded-[2rem] p-6 shadow-2xl border border-zen-medium/20">
-          <h2 class="text-[10px] font-bold text-[#f8fafc] uppercase tracking-[0.2em] opacity-90 flex items-center mb-6">
-            <span class="text-zen-accent mr-2 text-sm">✦</span> Resumen de Cartera
+          <h2 class="text-[10px] font-bold text-[#f8fafc] uppercase tracking-[0.3em] opacity-90 flex items-center mb-8">
+            <span class="text-zen-accent mr-3 text-sm">✦</span> Resumen de Cartera
           </h2>
 
           <div class="flex flex-wrap gap-4 items-center">
@@ -323,13 +344,13 @@
                       </td>
                       <td class="py-5 text-zen-text">{{ item.Quantity }}</td>
                       <td class="py-5 text-zen-text/70">{{ item.BuyPrice | currency }}</td>
-                      <td class="py-5 text-zen-darkest font-medium">{{ item.CurrentPrice | currency }}</td>
+                      <td class="py-5 text-zen-darkest font-medium zen-price-transition">{{ item.CurrentPrice | currency }}</td>
                       <td class="py-5 text-zen-dark text-center font-medium">{{ getDaysElapsed(item.BuyDate) }}</td>
-                      <td class="py-5 text-right pr-4 font-medium"
+                      <td class="py-5 text-right pr-4 font-medium zen-price-transition"
                         [ngClass]="{'text-green-400': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
                         {{ item.Gain >= 0 ? '+' : '' }}{{ item.Gain | currency }}
                       </td>
-                      <td class="py-5 text-right pr-4 font-medium"
+                      <td class="py-5 text-right pr-4 font-medium zen-price-transition"
                         [ngClass]="{'text-green-400': item.Gain >= 0, 'text-red-400': item.Gain < 0}">
                         {{ item.Gain >= 0 ? '+' : '' }}{{ (item.BuyPrice ? (item.CurrentPrice / item.BuyPrice - 1) : 0)
                         | percent:'1.2-2' }}

@@ -23,6 +23,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     loading = true;
     currentDate = new Date();
     isUpdatingData = false;
+    isFocusedMode = false;
 
     // Resumen Agrupado
     groupedAssets: any[] = [];
@@ -57,6 +58,10 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     private symbolSubscription!: Subscription;
 
     constructor(private portfolioService: PortfolioService) { }
+
+    toggleFocusedMode() {
+        this.isFocusedMode = !this.isFocusedMode;
+    }
 
     ngOnInit() {
         this.fetchData();
