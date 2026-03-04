@@ -1,36 +1,149 @@
 # 🧘‍♂️ Portafolio Zen - Control de Inversiones
 
-Sistema de control y gestión de inversiones (Acciones y Cedears). Evolucionado desde un script básico hacia una **aplicación web moderna, asíncrona y de pila completa (Full-Stack)** diseñada de manera exclusiva para uso privado.
+Sistema completo de gestión de inversiones personales con captura automática de históricos de precios. Aplicación web Full-Stack diseñada para uso privado local.
 
-## 🚀 Arquitectura y Tecnologías
-Esta plataforma abandonó su dependencia en Python a favor de un ecosistema **100% JavaScript / TypeScript**, asegurando velocidad, estabilidad web y evitando cruces de procesos.
+## 🎯 ¿Qué es Portafolio Zen?
+Plataforma que centraliza el control de tus inversiones en acciones y CEDEARs, con seguimiento en tiempo real de mercados globales y construcción automática de históricos para análisis de tendencias.
 
-*   **Backend Minimalista (Node.js)**: Utiliza `Express` para el ruteo, `SQLite3` para la persistencia de datos local, `yahoo-finance2` para el autocompletado de empresas y consultas a APIs públicas de mercado.
-*   **Frontend Unificado (Angular)**: Single Page Application (SPA) que elimina la necesidad de recargas de pantalla (cero parpadeos o renderizados forzados).  
-*   **Estética (Tailwind CSS)**: Interfaz de usuario "Zen Dark", diseñada con colores marinos Premium, animaciones fluidas, flexbox asimétrico y tipografía limpia.
+### Características Principales
+* **Portfolio Inteligente**: Registro y seguimiento de todas tus posiciones (compras, ventas, ganancias/pérdidas)
+* **Histórico Automático**: Captura diaria de precios al cierre del mercado para análisis temporal
+* **Ticker Tape Global**: Seguimiento continuo de S&P 500, Nasdaq, Dow Jones, 50+ acciones top, criptomonedas, commodities y forex
+* **Autocompletado Yahoo Finance**: Validación automática de símbolos y nombres de empresas
+* **Oráculo Cripto**: Conversión USDT/ARS en tiempo real vía Binance
+* **100% Privado**: Todo corre en localhost, sin cloud, sin telemetría
 
-## ✨ Funcionalidades Clave
+## 🏗️ Tecnologías
+Arquitectura Full-Stack JavaScript/TypeScript
 
-*   **Cinta de Cotizaciones Continua (Ticker Tape)**: Un robusto *Ticker Tape* integrado en el encabezado de la aplicación que muestra en tiempo real las variaciones de mercado.
-    *   **Acciones Top Globales**: Seguimiento del S&P 500, Nasdaq 100 y Dow Jones junto con más de 50 de las principales empresas del mundo (Apple, Nvidia, Microsoft, Tesla, etc.).
-    *   **Criptomonedas**: Monitoreo en vivo de BTC, ETH, SOL, XRP y ADA mediante Binance.
-    *   **Materias Primas (Commodities)**: Futuros agrícolas en tiempo real conectados a CBOT e ICE (Soja, Trigo, Maíz, Café, Cacao, Azúcar y Jugo de Naranja) junto al Oro, Plata y Petróleo.
-    *   **Mercado Forex (Divisas)**: Seguimiento de cruces locales e internacionales (USD/MXN, USD/BRL, EUR/TRY, etc.).
-*   **Layout Adaptativo**: Disposición dividida que permite visualizar, en una sola pantalla, el formulario de carga interactiva, tarjetas de ganancia global, tabla histórica y resúmenes laterales.
-*   **Autocompletado Inteligente**: Al escribir el Ticker (Código) de la acción, el backend Node se comunica con Yahoo Finance para precargar el nombre oficial de la empresa y bloquear errores tipográficos.
-*   **Historial de Ventas**: Sistema robusto de persistencia que diferencia entre eliminar un registro falso por error y registrar la "Venta Real" de un activo (cambio de status de OPEN a CLOSED guardando precio y fecha de salida).
-*   **Oráculo Cripto (Binance)**: Conector en tiempo real al servidor de Binance para mostrar la conversión dinámica del par **USDT/ARS** (Dólar Cripto).
-*   **Resumen Consolidado**: Cuadro lateral que agrupa matemáticamente las inversiones (Ej. múltiples compras de una misma empresa convergen en un monto de capital único valorizado).
-*   **Histórico de Precios**: Captura mediante la acción "Precios Finales" de cotizaciones al cierre del mercado y agrupación local por Fecha y Hora. Incluye una ventana emergente para visualizar y auditar todas las mediciones ordenadas de cada activo en formato histórico Zen.
+* **Backend**: Node.js + Express + SQLite3
+* **Frontend**: Angular + Tailwind CSS
+* **Datos**: Yahoo Finance API + Binance API
+* **Automatización**: Scheduler para capturas programadas
+
+## ✨ Sistema de Históricos (Nuevo)
+### Captura Automática de Precios
+El sistema registra automáticamente el precio de cierre de todos tus activos activos cada día a las 17:00 EST (21:00 ARG), construyendo una base de datos temporal que permite:
+
+* **Análisis de Performance**: Evolución de cada activo en períodos personalizados (30/60/90 días)
+* **Detección de Tendencias**: Identificar patrones alcistas o bajistas
+* **Backtesting**: Simular estrategias de inversión con datos reales
+* **Reportes Fiscales**: Consultar precio exacto en cualquier fecha pasada
+* **Alertas Inteligentes**: Configurar notificaciones cuando un activo retorna a niveles históricos
+
+### Captura Manual
+Además del registro automático, incluye un botón "Precios Finales" que permite capturar instantáneas del mercado en cualquier momento.
+
+### Ventana de Auditoría
+Modal emergente que muestra todo el historial de un activo específico ordenado por fecha, con precio y variación porcentual del día.
+
+## 🔍 Funcionalidades del Portfolio
+### Gestión de Posiciones
+* Registro de compras con fecha, precio y cantidad
+* Actualización de precios en tiempo real
+* Sistema de ventas que diferencia entre "eliminar error" y "registrar venta real"
+* Conservación del histórico de posiciones cerradas
+
+### Ticker Tape Continuo
+Cinta superior con cotizaciones en tiempo real de:
+* **Índices**: S&P 500, Nasdaq 100, Dow Jones
+* **Acciones Top**: Apple, Microsoft, Nvidia, Tesla, Amazon, Google, Meta...
+* **Criptomonedas**: Bitcoin, Ethereum, Solana, Ripple, Cardano
+* **Commodities**: Oro, Plata, Petróleo, Soja, Trigo, Maíz, Café, Cacao
+* **Forex**: USD/MXN, USD/BRL, EUR/TRY y otros cruces relevantes
+
+### Resumen Consolidado
+Panel que agrupa matemáticamente múltiples compras del mismo activo en una valorización única, mostrando capital invertido vs valor actual.
 
 ## 🔒 Privacidad y Seguridad
-La aplicación corre íntegramente en `localhost`. La base de datos financiera central (`portfolio.db`) está auditada mediante políticas estrictas de `.gitignore`. **Los datos de inversión nunca escapan hacia GitHub ni la nube pública**.
+* **Localhost Only**: La aplicación solo es accesible desde tu computadora
+* **Base de Datos Local**: SQLite almacenado en tu disco, nunca en la nube
+* **Git Protegido**: Políticas estrictas que evitan versionar datos financieros
+* **Zero Telemetría**: Sin analytics, sin tracking externo
+* **APIs Públicas**: Solo consulta precios de mercado, nunca envía tus posiciones
 
-## 🛠️ Instalación y Uso Local
-Este software corre mediante un ejecutador maestro para ecosistemas Windows.
-1. Clonar el repositorio.
-2. Hacer doble clic sobre `launcher.vbs`.
-3. El lanzador matará instancias conflictivas anteriores, silenciará las consolas de Node/Angular, levantará una "Splash Screen" (pantalla de carga de alta gama escrita en HTA firmada por el autor), y abrirá el navegador automático en `http://localhost:4200`.
+## 🚀 Instalación
+### Requisitos
+* Node.js versión 18 o superior
+* Sistema operativo Windows 10/11
+* Navegador moderno (Chrome, Edge, Firefox)
 
----
-*Desarrollado y refinado para la máxima concentración financiera por Fabian A.Correa*
+### Inicio Rápido
+1. Clonar repositorio
+2. Hacer doble clic en `launcher.vbs`
+3. El sistema se abre automáticamente en `http://localhost:4200`
+
+### ¿Qué hace el Launcher?
+Script maestro que ejecuta toda la infraestructura en un solo clic:
+* Elimina procesos anteriores para evitar conflictos
+* Levanta el backend (puerto 3000)
+* Levanta el frontend (puerto 4200)
+* Muestra splash screen de carga
+* Abre el navegador automáticamente
+
+## 📊 API REST
+### Endpoints de Portfolio
+* Listar posiciones activas y cerradas
+* Crear nueva posición
+* Actualizar cantidad o precio
+* Eliminar posición
+* Registrar venta con fecha y precio de salida
+* Autocompletar símbolos desde Yahoo Finance
+
+### Endpoints de Históricos
+* Obtener histórico completo de un activo
+* Obtener último precio registrado
+* Consultar rango de fechas específico
+* Histórico de todo el portfolio
+* Captura manual de snapshot
+* Estadísticas (mínimo, máximo, promedio)
+
+## 🛣️ Roadmap
+### ✅ Versión Actual (1.0)
+* Portfolio con CRUD completo
+* Ticker Tape multi-mercado
+* Sistema de ventas con histórico
+* Captura de precios manuales
+* Base de datos de históricos
+* Launcher automático
+
+### 🚧 Próximamente (1.1)
+* Gráficos interactivos de evolución de precios
+* Exportación de históricos a Excel/CSV
+* Automatización completa del scheduler diario
+* Comparador de rendimientos entre activos
+
+### 🔮 Futuro (2.0)
+* Alertas por precio objetivo
+* Análisis técnico básico (medias móviles, RSI, MACD)
+* Soporte multi-portfolio
+* Dashboard de performance con métricas avanzadas
+
+## 🐛 Solución de Problemas
+### El launcher no arranca
+* Verificar que Node.js esté instalado correctamente
+* Comprobar que los puertos 3000 y 4200 estén libres
+* Ejecutar como administrador si hay restricciones de permisos
+
+### Error de base de datos
+* La aplicación crea automáticamente las tablas necesarias en el primer arranque
+* Si hay inconsistencias, el sistema detecta esquemas antiguos y los migra
+
+### Símbolos no encontrados
+* Algunos activos requieren sufijos especiales (ej: `BRK-B` para Berkshire Hathaway)
+* Los índices llevan prefijo `^` (ej: `^GSPC` para S&P 500)
+
+## 📁 Estructura del Proyecto
+```text
+portafolio-zen/
+├── backend/          # Servidor Node.js + API REST
+├── frontend/         # Aplicación Angular
+├── tools/            # Scripts de utilidad
+├── portfolio.db      # Base de datos (no versionada)
+├── launcher.vbs      # Lanzador maestro
+└── splash.hta        # Pantalla de carga
+```
+
+## 📝 Notas Finales
+**Uso Personal Exclusivo** - Proyecto desarrollado para gestión privada de patrimonio.
+*Desarrollado por Fabian A. Correa*
