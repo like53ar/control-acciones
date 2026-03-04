@@ -1,4 +1,32 @@
-<div class="min-h-screen bg-zen-light flex flex-col justify-start py-12 px-4 sm:px-6 lg:px-8 font-sans zen-transition">
+<div
+  class="min-h-screen bg-zen-light flex flex-col justify-start py-12 px-4 sm:px-6 lg:px-8 font-sans zen-transition relative overflow-hidden">
+
+  <!-- Toast Custom Alert -->
+  <div *ngIf="toast.show"
+    class="fixed top-8 right-8 z-[100] shadow-2xl rounded-2xl border backdrop-blur-md bg-[#1e293b]/95 transition-all duration-300 transform translate-y-0 opacity-100"
+    [ngClass]="{
+         'border-green-500/50 text-green-400': toast.type === 'success',
+         'border-red-500/40 text-red-400': toast.type === 'error',
+         'border-blue-500/50 text-blue-400': toast.type === 'info'
+       }">
+    <div class="px-6 py-4 flex items-center gap-3">
+      <svg *ngIf="toast.type === 'success'" class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <svg *ngIf="toast.type === 'error'" class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <svg *ngIf="toast.type === 'info'" class="w-6 h-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+      </svg>
+      <span class="font-medium tracking-wide text-sm whitespace-pre-line">{{ toast.message }}</span>
+    </div>
+  </div>
 
   <!-- Floating Toggle for Focused Mode -->
   <button (click)="toggleFocusedMode()"
@@ -79,14 +107,14 @@
               </div>
 
               <button (click)="openChartModal()"
-                class="w-full mt-6 bg-zen-lightest/5 text-[#f8fafc] border border-zen-medium/40 rounded-2xl px-4 py-3 text-sm font-medium tracking-wide hover:bg-zen-light/20 transition-all flex items-center justify-center gap-2 shadow-inner">
+                class="w-full mt-6 bg-zen-accent/10 text-zen-accent border border-zen-accent/40 rounded-2xl px-4 py-3 text-sm font-medium tracking-wide hover:bg-zen-accent/20 hover:border-zen-accent/60 transition-all flex items-center justify-center gap-2 shadow-inner">
                 <svg class="h-5 w-5 text-zen-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" />
                 </svg>
-                Ver Distribución
+                Gráficos
               </button>
 
               <button (click)="fetchData()" [disabled]="isUpdatingData"
@@ -107,7 +135,7 @@
 
               <!-- Precios Finales -->
               <button (click)="saveHistoricalPrices()" [disabled]="isSavingHistorical || isUpdatingData"
-                class="w-full mt-3 bg-purple-500/10 text-purple-400 border border-purple-500/30 rounded-2xl px-4 py-3 text-sm font-medium tracking-wide hover:bg-purple-500/20 transition-all flex items-center justify-center gap-2 shadow-inner disabled:opacity-50">
+                class="w-full mt-3 bg-purple-500/10 text-purple-400 border border-purple-500/40 rounded-2xl px-4 py-3 text-sm font-medium tracking-wide hover:bg-purple-500/20 hover:border-purple-500/60 transition-all flex items-center justify-center gap-2 shadow-inner disabled:opacity-50">
                 <svg *ngIf="!isSavingHistorical" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                     d="M8 7H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-3m-1 4l-3 3m0 0l-3-3m3 3V4" />
@@ -119,12 +147,12 @@
                     d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
                   </path>
                 </svg>
-                Precios Finales
+                Cierre del día
               </button>
 
               <!-- Visualizar Historico -->
               <button (click)="openHistoricalModal()"
-                class="w-full mt-3 bg-zen-lightest/5 text-[#f8fafc] border border-zen-medium/40 rounded-2xl px-4 py-3 text-sm font-medium tracking-wide hover:bg-zen-light/20 transition-all flex items-center justify-center gap-2 shadow-inner">
+                class="w-full mt-3 bg-blue-500/10 text-blue-400 border border-blue-500/40 rounded-2xl px-4 py-3 text-sm font-medium tracking-wide hover:bg-blue-500/20 hover:border-blue-500/60 transition-all flex items-center justify-center gap-2 shadow-inner">
                 <svg class="h-5 w-5 text-zen-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -632,17 +660,59 @@
             <div class="text-center mb-6">
               <h3
                 class="text-sm font-semibold tracking-widest text-[#f8fafc] uppercase flex items-center justify-center gap-2">
-                <span class="text-zen-accent">✦</span> Distribución de Cartera Actual
+                <span class="text-zen-accent">✦</span> Gráficos
               </h3>
             </div>
 
-            <div class="w-full relative" style="height: 350px;">
-              <canvas id="portfolioPieChart"></canvas>
+            <!-- Tabs -->
+            <div class="flex justify-center gap-4 mb-6">
+              <button (click)="setGraphTab('distribution')"
+                [ngClass]="activeGraphTab === 'distribution' ? 'bg-zen-accent text-[#0f172a] font-bold hover:bg-opacity-90' : 'bg-zen-lightest/10 text-white hover:bg-zen-lightest/20'"
+                class="px-5 py-2.5 rounded-xl text-[11px] tracking-widest uppercase transition-all border border-zen-medium/30 shadow-sm font-medium">
+                Distribución
+              </button>
+              <button (click)="setGraphTab('evolution')"
+                [ngClass]="activeGraphTab === 'evolution' ? 'bg-zen-accent text-[#0f172a] font-bold hover:bg-opacity-90' : 'bg-zen-lightest/10 text-white hover:bg-zen-lightest/20'"
+                class="px-5 py-2.5 rounded-xl text-[11px] tracking-widest uppercase transition-all border border-zen-medium/30 shadow-sm font-medium">
+                Evolución
+              </button>
             </div>
 
-            <div class="mt-6 text-center">
-              <p class="text-[10px] text-zen-dark uppercase tracking-widest">Valorizado en Pesos Argentinos (ARS)</p>
+            <!-- Distribución View -->
+            <div [class.hidden]="activeGraphTab !== 'distribution'">
+              <div class="w-full relative" style="height: 350px;">
+                <canvas id="portfolioPieChart"></canvas>
+              </div>
+              <div class="mt-6 text-center">
+                <p class="text-[10px] text-zen-dark uppercase tracking-widest">Participación valorizada en ARS</p>
+              </div>
             </div>
+
+            <!-- Evolución View -->
+            <div [class.hidden]="activeGraphTab !== 'evolution'" class="w-full flex flex-col items-center">
+              <div class="mb-5 w-full flex justify-center">
+                <select [(ngModel)]="selectedEvolutionSymbol" (change)="renderEvolutionChart()"
+                  class="bg-[#0f172a] text-[#f8fafc] border border-zen-accent/40 hover:border-zen-accent/60 rounded-xl px-5 py-2.5 text-sm focus:border-zen-accent focus:ring-1 focus:ring-zen-accent outline-none uppercase shadow-inner w-full max-w-xs transition-all cursor-pointer">
+                  <option value="" disabled selected>Seleccione un Activo</option>
+                  <option *ngFor="let sym of evolutionSymbols" [value]="sym">{{ sym }}</option>
+                </select>
+              </div>
+              <div *ngIf="isEvolutionLoading" class="w-full h-[350px] flex justify-center items-center">
+                <svg class="w-8 h-8 animate-spin text-zen-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z">
+                  </path>
+                </svg>
+              </div>
+              <div [class.hidden]="isEvolutionLoading" class="w-full relative" style="height: 350px;">
+                <canvas id="evolutionLineChart"></canvas>
+              </div>
+              <div [class.hidden]="isEvolutionLoading" class="mt-6 text-center">
+                <p class="text-[10px] text-zen-dark uppercase tracking-widest">Historial de Cierres (ARS)</p>
+              </div>
+            </div>
+
           </div>
         </div>
 
@@ -686,18 +756,18 @@
                 <thead>
                   <tr
                     class="text-[10px] text-zen-dark/70 uppercase tracking-wider border-b border-zen-medium sticky top-0 bg-[#1e293b] z-10">
-                    <th class="pb-4 font-normal pl-2">Fecha</th>
+                    <th class="pb-4 font-normal pl-2">Símbolo</th>
+                    <th class="pb-4 font-normal">Fecha</th>
                     <th class="pb-4 font-normal">Hora</th>
-                    <th class="pb-4 font-normal">Símbolo</th>
                     <th class="pb-4 font-normal text-right pr-2">Precio de Cierre</th>
                   </tr>
                 </thead>
                 <tbody class="text-sm">
                   <tr *ngFor="let record of historicalData"
                     class="border-b border-zen-medium/50 last:border-0 hover:bg-zen-light/5 transition-colors duration-300">
-                    <td class="py-3 pl-2 text-zen-text font-medium">{{ record.date | date:'dd/MM/yyyy' }}</td>
+                    <td class="py-3 pl-2 font-medium text-zen-accent uppercase tracking-widest">{{ record.symbol }}</td>
+                    <td class="py-3 text-zen-text font-medium">{{ record.date | date:'dd/MM/yyyy' }}</td>
                     <td class="py-3 text-zen-text/70">{{ record.time }}</td>
-                    <td class="py-3 font-medium text-zen-accent uppercase tracking-widest">{{ record.symbol }}</td>
                     <td class="py-3 text-right pr-2 font-medium text-[#f8fafc] tracking-wide">{{ record.price | currency
                       }}</td>
                   </tr>

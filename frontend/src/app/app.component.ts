@@ -9,6 +9,13 @@ import ChartDataLabels from 'chartjs-plugin-datalabels';
 
 Chart.register(ChartDataLabels);
 
+function getLocalIsoDate(date: Date = new Date()): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
 @Component({
     selector: 'app-root',
     standalone: true,
@@ -50,12 +57,31 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     private exchangeInterval: any;
 
     // Formulario de Inversión
+    toast = {
+        show: false,
+        message: '',
+        type: 'info' as 'success' | 'error' | 'info'
+    };
+    private toastTimeout: any;
+
+    showToast(message: string, type: 'success' | 'error' | 'info' = 'info') {
+        this.toast.message = message;
+        this.toast.type = type;
+        this.toast.show = true;
+        if (this.toastTimeout) {
+            clearTimeout(this.toastTimeout);
+        }
+        this.toastTimeout = setTimeout(() => {
+            this.toast.show = false;
+        }, 4000);
+    }
+
     newItem = {
         symbol: '',
         company: '',
         quantity: null as number | null,
         buy_price: null as number | null,
-        buy_date: new Date().toISOString().split('T')[0] // Default to today
+        buy_date: getLocalIsoDate() // Default to today
     };
     submitting = false;
     loadingCompany = false;
@@ -319,7 +345,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
 
     addItem() {
         if (!this.newItem.symbol || !this.newItem.quantity || !this.newItem.buy_price) {
-            alert('Por favor, completa todos los campos requeridos para añadir tu inversión.');
+            this.showToast('Por favor, completa todos los campos requeridos para añadir tu inversión.', 'error');
             return;
         }
 
@@ -342,14 +368,14 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
                     company: '',
                     quantity: null,
                     buy_price: null,
-                    buy_date: new Date().toISOString().split('T')[0]
+                    buy_date: getLocalIsoDate()
                 };
                 this.submitting = false;
                 this.fetchData();
             },
             error: (err) => {
                 console.error('Error al añadir posición', err);
-                alert('Hubo un error al conectarse con el servidor para guardar la posición.');
+                this.showToast('Hubo un error al conectarse con el servidor para guardar la posición.', 'error');
                 this.submitting = false;
             }
         });
@@ -398,7 +424,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     itemToSell: any = null;
     isSelling = false;
     sellPrice: number | null = null;
-    sellDate: string = new Date().toISOString().split('T')[0];
+    sellDate: string = getLocalIsoDate();
     sellQuantity: number | null = null;
 
 
@@ -415,14 +441,21 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         buy_date: ''
     };
 
-    // Modal de Gráfico de Torta
+    // Modals de Gráficos
     showChartModal = false;
+    activeGraphTab: 'distribution' | 'evolution' = 'distribution';
     portfolioChart: any;
+
+    // Evolución
+    evolutionChart: any;
+    evolutionSymbols: string[] = [];
+    selectedEvolutionSymbol: string = '';
+    isEvolutionLoading = false;
 
     confirmSell(item: any) {
         this.itemToSell = item;
         this.sellPrice = item.CurrentPrice;
-        this.sellDate = new Date().toISOString().split('T')[0];
+        this.sellDate = getLocalIsoDate();
         this.sellQuantity = item.Quantity; // Default to full quantity
         this.showSellModal = true;
     }
@@ -437,7 +470,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         if (!this.itemToSell || !this.sellPrice || !this.sellDate || !this.sellQuantity) return;
 
         if (this.sellQuantity > this.itemToSell.Quantity) {
-            alert('No puedes vender más de lo que posees.');
+            this.showToast('No puedes vender más de lo que posees.', 'error');
             return;
         }
 
@@ -506,16 +539,20 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
             },
             error: (err) => {
                 console.error('Error al editar posición', err);
-                alert('Ocurrió un error al guardar los cambios.');
+                this.showToast('Ocurrió un error al guardar los cambios.', 'error');
                 this.isEditing = false;
             }
         });
     }
 
-    // Modal de Gráfico de Torta Methods
+    // Modal de Gráficos
     openChartModal() {
         this.showChartModal = true;
+        this.activeGraphTab = 'distribution';
+        this.renderPieChart();
+    }
 
+    renderPieChart() {
         // Wait for modal to render the canvas
         setTimeout(() => {
             const ctx = document.getElementById('portfolioPieChart') as HTMLCanvasElement;
@@ -607,12 +644,128 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
             this.portfolioChart.destroy();
             this.portfolioChart = null;
         }
+        if (this.evolutionChart) {
+            this.evolutionChart.destroy();
+            this.evolutionChart = null;
+        }
+    }
+
+    setGraphTab(tab: 'distribution' | 'evolution') {
+        this.activeGraphTab = tab;
+        if (tab === 'evolution') {
+            this.prepareEvolutionView();
+        } else {
+            this.renderPieChart();
+        }
+    }
+
+    prepareEvolutionView() {
+        if (this.historicalData.length === 0) {
+            this.isEvolutionLoading = true;
+            this.portfolioService.getHistoricalPrices().subscribe({
+                next: (res) => {
+                    this.historicalData = res.data;
+                    this.extractEvolutionSymbols();
+                    this.isEvolutionLoading = false;
+                },
+                error: (err) => {
+                    console.error('Error fetching historical', err);
+                    this.isEvolutionLoading = false;
+                }
+            });
+        } else {
+            this.extractEvolutionSymbols();
+        }
+    }
+
+    extractEvolutionSymbols() {
+        const syms = new Set(this.historicalData.map(r => r.symbol));
+        this.evolutionSymbols = Array.from(syms).sort();
+        if (this.evolutionSymbols.length > 0 && !this.selectedEvolutionSymbol) {
+            this.selectedEvolutionSymbol = this.evolutionSymbols[0];
+            this.renderEvolutionChart();
+        } else if (this.selectedEvolutionSymbol) {
+            this.renderEvolutionChart();
+        }
+    }
+
+    renderEvolutionChart() {
+        if (!this.selectedEvolutionSymbol) return;
+
+        setTimeout(() => {
+            const ctx = document.getElementById('evolutionLineChart') as HTMLCanvasElement;
+            if (!ctx) return;
+
+            const records = this.historicalData.filter(r => r.symbol === this.selectedEvolutionSymbol);
+
+            // Re-sort records implicitly checking time parsing just to be safe, though DB handles it
+            const labels = records.map(r => {
+                const parts = r.date.split('-');
+                return parts.length === 3 ? `${parts[2]}/${parts[1]}/${parts[0]} ${r.time}` : `${r.date} ${r.time}`;
+            });
+            const data = records.map(r => r.price);
+
+            if (this.evolutionChart) {
+                this.evolutionChart.destroy();
+            }
+
+            this.evolutionChart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: `Evolución de ${this.selectedEvolutionSymbol}`,
+                        data: data,
+                        borderColor: '#38bdf8',
+                        backgroundColor: 'rgba(56, 189, 248, 0.1)',
+                        borderWidth: 2,
+                        fill: true,
+                        tension: 0.1,
+                        pointBackgroundColor: '#38bdf8'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        datalabels: { display: false },
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context: any) {
+                                    if (context.parsed.y !== null) {
+                                        return new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS' }).format(context.parsed.y);
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            ticks: { color: '#9ca3af', font: { size: 10 } },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        },
+                        y: {
+                            ticks: {
+                                color: '#9ca3af',
+                                font: { size: 10 },
+                                callback: function (value: any) {
+                                    return '$' + value;
+                                }
+                            },
+                            grid: { color: 'rgba(255, 255, 255, 0.05)' }
+                        }
+                    }
+                }
+            });
+        }, 50);
     }
 
     // Modal de Histórico de Precios
     saveHistoricalPrices() {
         if (!this.groupedAssets || this.groupedAssets.length === 0) {
-            alert('No hay activos en el portafolio para guardar.');
+            this.showToast('No hay activos en el portafolio para guardar.', 'error');
             return;
         }
 
@@ -620,7 +773,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         const now = new Date();
         const dateStr = now.toLocaleDateString('es-AR').split('/').reverse().join('-'); // Format YYYY-MM-DD manually to avoid timezone issues or just use toISOString
         // safer simple format
-        const isoDate = now.toISOString().split('T')[0];
+        const isoDate = getLocalIsoDate(now);
         const timeStr = now.toTimeString().split(' ')[0]; // Gets HH:MM:SS
 
         const assetsPayload = this.groupedAssets.map(group => ({
@@ -637,12 +790,12 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         this.portfolioService.saveHistoricalPrices(payload).subscribe({
             next: () => {
                 this.isSavingHistorical = false;
-                alert('Precios históricos guardados exitosamente.');
+                this.showToast('Precios históricos guardados exitosamente.', 'success');
             },
             error: (err) => {
                 console.error('Error al guardar históricos', err);
                 this.isSavingHistorical = false;
-                alert('Hubo un error al guardar los precios históricos.');
+                this.showToast('Hubo un error al guardar los precios históricos.', 'error');
             }
         });
     }
@@ -658,7 +811,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
             error: (err) => {
                 console.error('Error al obtener históricos', err);
                 this.isHistoricalLoading = false;
-                alert('Error al cargar históricos');
+                this.showToast('Error al cargar históricos', 'error');
             }
         });
     }
@@ -671,7 +824,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     // Exportar a CSV
     exportToCSV() {
         if (!this.portfolioData || !this.portfolioData.data || this.portfolioData.data.length === 0) {
-            alert('No hay datos para exportar.');
+            this.showToast('No hay datos para exportar.', 'error');
             return;
         }
 
@@ -712,7 +865,7 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         const link = document.createElement('a');
 
         const now = new Date();
-        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+        const dateStr = getLocalIsoDate(now); // YYYY-MM-DD
 
         link.setAttribute('href', url);
         link.setAttribute('download', `portafolio_zen_${dateStr}.csv`);

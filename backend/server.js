@@ -274,7 +274,7 @@ app.get('/api/ping', (req, res) => {
 
 // GET /api/historical-prices
 app.get('/api/historical-prices', (req, res) => {
-    db.all('SELECT * FROM historical_prices ORDER BY date DESC, time DESC, symbol ASC', (err, rows) => {
+    db.all('SELECT * FROM historical_prices ORDER BY symbol ASC, date ASC, time ASC', (err, rows) => {
         if (err) return res.status(500).json({ error: err.message });
         res.json({ data: rows });
     });
@@ -288,13 +288,18 @@ app.post('/api/historical-prices', (req, res) => {
     }
 
     db.serialize(() => {
-        const stmt = db.prepare('INSERT INTO historical_prices (date, time, symbol, price) VALUES (?, ?, ?, ?)');
-        assets.forEach(asset => {
-            stmt.run([date, time, asset.symbol, asset.price]);
-        });
-        stmt.finalize((err) => {
+        // Eliminar registros anteriores del mismo día para mantener sólo el último snapshot
+        db.run('DELETE FROM historical_prices WHERE date = ?', [date], (err) => {
             if (err) return res.status(500).json({ error: err.message });
-            res.json({ message: 'Precios históricos guardados exitosamente' });
+
+            const stmt = db.prepare('INSERT INTO historical_prices (date, time, symbol, price) VALUES (?, ?, ?, ?)');
+            assets.forEach(asset => {
+                stmt.run([date, time, asset.symbol, asset.price]);
+            });
+            stmt.finalize((err) => {
+                if (err) return res.status(500).json({ error: err.message });
+                res.json({ message: 'Precios históricos guardados exitosamente' });
+            });
         });
     });
 });

@@ -32,7 +32,15 @@ El sistema registra automáticamente el precio de cierre de todos tus activos ac
 * **Alertas Inteligentes**: Configurar notificaciones cuando un activo retorna a niveles históricos
 
 ### Captura Manual
-Además del registro automático, incluye un botón "Precios Finales" que permite capturar instantáneas del mercado en cualquier momento.
+Además del registro automático, incluye un botón "Cierre del día" que permite capturar instantáneas del mercado en cualquier momento (ej., al final de la jornada).
+
+### Gráficos Interactivos
+Panel consolidado de "Gráficos" que ofrece dos perspectivas analíticas:
+* **Distribución**: Gráfico de torta que muestra tu participación valorizada en ARS.
+* **Evolución**: Gráfico lineal dinámico que se conecta a tu base de datos de precios históricos, graficando la curva de rendimiento y el histórico de cierres de cada activo seleccionado.
+
+### Notificaciones UI Mejoradas
+Sistema de alertas tipo Toast, no intrusivas, que brindan retroalimentación instantánea (éxito, error, info) al realizar compras, ventas, exportaciones o capturas de históricos.
 
 ### Ventana de Auditoría
 Modal emergente que muestra todo el historial de un activo específico ordenado por fecha, con precio y variación porcentual del día.
@@ -99,17 +107,18 @@ Script maestro que ejecuta toda la infraestructura en un solo clic:
 * Estadísticas (mínimo, máximo, promedio)
 
 ## 🛣️ Roadmap
-### ✅ Versión Actual (1.0)
+### ✅ Versión Actual (1.1)
 * Portfolio con CRUD completo
 * Ticker Tape multi-mercado
 * Sistema de ventas con histórico
-* Captura de precios manuales
-* Base de datos de históricos
+* Captura de precios manuales (Cierre del día)
+* Gráficos interactivos de evolución de precios y distribución de cartera
+* Exportación de portfolio a CSV
+* Notificaciones Toast integradas
+* Base de datos de históricos con protección temporal (1 registro diario)
 * Launcher automático
 
-### 🚧 Próximamente (1.1)
-* Gráficos interactivos de evolución de precios
-* Exportación de históricos a Excel/CSV
+### 🚧 Próximamente (1.2)
 * Automatización completa del scheduler diario
 * Comparador de rendimientos entre activos
 
