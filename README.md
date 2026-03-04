@@ -21,6 +21,7 @@ Esta plataforma abandonó su dependencia en Python a favor de un ecosistema **10
 *   **Historial de Ventas**: Sistema robusto de persistencia que diferencia entre eliminar un registro falso por error y registrar la "Venta Real" de un activo (cambio de status de OPEN a CLOSED guardando precio y fecha de salida).
 *   **Oráculo Cripto (Binance)**: Conector en tiempo real al servidor de Binance para mostrar la conversión dinámica del par **USDT/ARS** (Dólar Cripto).
 *   **Resumen Consolidado**: Cuadro lateral que agrupa matemáticamente las inversiones (Ej. múltiples compras de una misma empresa convergen en un monto de capital único valorizado).
+*   **Histórico de Precios**: Captura mediante la acción "Precios Finales" de cotizaciones al cierre del mercado y agrupación local por Fecha y Hora. Incluye una ventana emergente para visualizar y auditar todas las mediciones ordenadas de cada activo en formato histórico Zen.
 
 ## 🔒 Privacidad y Seguridad
 La aplicación corre íntegramente en `localhost`. La base de datos financiera central (`portfolio.db`) está auditada mediante políticas estrictas de `.gitignore`. **Los datos de inversión nunca escapan hacia GitHub ni la nube pública**.

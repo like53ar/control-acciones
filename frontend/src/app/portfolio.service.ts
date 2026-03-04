@@ -56,6 +56,15 @@ export class PortfolioService {
         return this.http.post(`${this.apiUrl}/${id}/sell`, payload);
     }
 
+    saveHistoricalPrices(payload: { date: string, time: string, assets: { symbol: string, price: number }[] }): Observable<any> {
+        const baseUrl = this.apiUrl.replace('/portfolio', '');
+        return this.http.post(`${baseUrl}/historical-prices`, payload);
+    }
+
+    getHistoricalPrices(): Observable<any> {
+        const baseUrl = this.apiUrl.replace('/portfolio', '');
+        return this.http.get(`${baseUrl}/historical-prices`);
+    }
 
     getQuote(symbol: string): Observable<any> {
         // En base a la URL actual 'http://localhost:8000/api/portfolio'

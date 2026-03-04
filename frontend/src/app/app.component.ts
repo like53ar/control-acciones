@@ -25,6 +25,12 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     isUpdatingData = false;
     isFocusedMode = false;
 
+    // Histórico de precios
+    isSavingHistorical = false;
+    showHistoricalModal = false;
+    historicalData: any[] = [];
+    isHistoricalLoading = false;
+
     // Resumen Agrupado
     groupedAssets: any[] = [];
 
@@ -601,6 +607,65 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
             this.portfolioChart.destroy();
             this.portfolioChart = null;
         }
+    }
+
+    // Modal de Histórico de Precios
+    saveHistoricalPrices() {
+        if (!this.groupedAssets || this.groupedAssets.length === 0) {
+            alert('No hay activos en el portafolio para guardar.');
+            return;
+        }
+
+        this.isSavingHistorical = true;
+        const now = new Date();
+        const dateStr = now.toLocaleDateString('es-AR').split('/').reverse().join('-'); // Format YYYY-MM-DD manually to avoid timezone issues or just use toISOString
+        // safer simple format
+        const isoDate = now.toISOString().split('T')[0];
+        const timeStr = now.toTimeString().split(' ')[0]; // Gets HH:MM:SS
+
+        const assetsPayload = this.groupedAssets.map(group => ({
+            symbol: group.Symbol,
+            price: group.CurrentPrice
+        }));
+
+        const payload = {
+            date: isoDate,
+            time: timeStr,
+            assets: assetsPayload
+        };
+
+        this.portfolioService.saveHistoricalPrices(payload).subscribe({
+            next: () => {
+                this.isSavingHistorical = false;
+                alert('Precios históricos guardados exitosamente.');
+            },
+            error: (err) => {
+                console.error('Error al guardar históricos', err);
+                this.isSavingHistorical = false;
+                alert('Hubo un error al guardar los precios históricos.');
+            }
+        });
+    }
+
+    openHistoricalModal() {
+        this.showHistoricalModal = true;
+        this.isHistoricalLoading = true;
+        this.portfolioService.getHistoricalPrices().subscribe({
+            next: (res) => {
+                this.historicalData = res.data;
+                this.isHistoricalLoading = false;
+            },
+            error: (err) => {
+                console.error('Error al obtener históricos', err);
+                this.isHistoricalLoading = false;
+                alert('Error al cargar históricos');
+            }
+        });
+    }
+
+    closeHistoricalModal() {
+        this.showHistoricalModal = false;
+        this.historicalData = [];
     }
 
     // Exportar a CSV
