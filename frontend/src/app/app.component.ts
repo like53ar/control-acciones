@@ -32,6 +32,20 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     isUpdatingData = false;
     isFocusedMode = false;
 
+    // Filtros de Portafolio
+    filterType: 'ALL' | 'WIN' | 'LOSS' = 'ALL';
+
+    get filteredPortfolioData() {
+        if (!this.portfolioData || !this.portfolioData.data) return [];
+        if (this.filterType === 'WIN') {
+            return this.portfolioData.data.filter(item => item.Gain > 0);
+        }
+        if (this.filterType === 'LOSS') {
+            return this.portfolioData.data.filter(item => item.Gain < 0);
+        }
+        return this.portfolioData.data;
+    }
+
     // Histórico de precios
     isSavingHistorical = false;
     showHistoricalModal = false;
@@ -98,11 +112,18 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
     ngOnInit() {
         this.fetchData();
         this.fetchExchangeRate();
+        this.fetchRadar();
+        this.fetchNews();
 
         this.exchangeInterval = setInterval(() => {
             this.fetchExchangeRate();
             this.checkExchangeRateOutdated();
         }, 1200000); // Actualizar y chequear cada 20 minutos
+
+        this.radarNewsInterval = setInterval(() => {
+            this.fetchRadar();
+            this.fetchNews();
+        }, 300000); // 5 minutos
 
         // Listener para buscar el nombre de la empresa sin saturar la API
         this.symbolSubscription = this.symbolSubject.pipe(
@@ -133,6 +154,9 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         }
         if (this.exchangeInterval) {
             clearInterval(this.exchangeInterval);
+        }
+        if (this.radarNewsInterval) {
+            clearInterval(this.radarNewsInterval);
         }
     }
 
@@ -276,6 +300,84 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
                 console.error('Error al obtener portafolio', err);
                 this.loading = false;
                 this.isUpdatingData = false;
+            }
+        });
+        this.fetchRadar();
+        this.fetchNews();
+    }
+
+    // --- Radar de Mercado ---
+    radarIndices: any[] = [];
+    radarTop5: any[] = [];
+    radarMacro: any[] = [];
+    loadingRadar = false;
+
+    getMacroName(symbol: string): string {
+        switch (symbol) {
+            case 'GC=F': return 'Oro';
+            case 'CL=F': return 'Petróleo WTI';
+            case 'BTC-USD': return 'Bitcoin';
+            case 'EURUSD=X': return 'EUR/USD';
+            case '^GSPC': return 'S&P 500';
+            case '^IXIC': return 'Nasdaq';
+            case '^DJI': return 'Dow Jones';
+            default: return symbol.replace('=F', '').replace('=X', '').replace('-USD', '');
+        }
+    }
+
+    fetchRadar() {
+        this.loadingRadar = true;
+        this.portfolioService.getRadar().subscribe({
+            next: (data) => {
+                this.radarIndices = data.filter(d => ['^GSPC', '^IXIC', '^DJI'].includes(d.symbol));
+                this.radarTop5 = data.filter(d => ['AAPL', 'MSFT', 'NVDA', 'AMZN', 'TSLA'].includes(d.symbol));
+                this.radarMacro = data.filter(d => ['GC=F', 'CL=F', 'BTC-USD', 'EURUSD=X'].includes(d.symbol));
+                this.loadingRadar = false;
+            },
+            error: (err) => {
+                console.error('Error al obtener radar', err);
+                this.loadingRadar = false;
+            }
+        });
+    }
+
+    // --- Feed de Noticias Urgentes ---
+    newsCategory: string = 'macro';
+    newsData: any[] = [];
+    loadingNews = false;
+    showNewsModal = false;
+    radarNewsInterval: any;
+
+    setNewsCategory(category: string) {
+        this.newsCategory = category;
+        this.fetchNews();
+    }
+
+    fetchNews() {
+        this.loadingNews = true;
+        this.portfolioService.getNews(this.newsCategory).subscribe({
+            next: (data) => {
+                // Determine urgency if title contains any portfolio asset symbol or company name
+                const portfolioAssets = this.portfolioData?.data || [];
+                this.newsData = data.map(news => {
+                    let isUrgent = false;
+                    for (const asset of portfolioAssets) {
+                        const symbolRegex = new RegExp(`\\b${asset.Symbol}\\b`, 'i');
+                        const companyWord = asset.Company.split(' ')[0]; // Take first word of company to match broadly
+                        const companyRegex = new RegExp(`\\b${companyWord}\\b`, 'i');
+                        
+                        if (symbolRegex.test(news.title) || (companyWord.length > 2 && companyRegex.test(news.title))) {
+                            isUrgent = true;
+                            break;
+                        }
+                    }
+                    return { ...news, isUrgent };
+                });
+                this.loadingNews = false;
+            },
+            error: (err) => {
+                console.error('Error al obtener noticias:', err);
+                this.loadingNews = false;
             }
         });
     }
@@ -875,5 +977,22 @@ export class AppComponent implements OnInit, OnDestroy, AfterViewInit {
         // Limpiar
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+    }
+
+    shutdown() {
+        if(confirm("¿Estás seguro de que deseas cerrar el sistema completo (Frontend y Backend)?")) {
+            this.showToast('Apagando el sistema...', 'info');
+            this.portfolioService.shutdownSystem().subscribe({
+                next: () => {
+                   window.close(); // Intenta cerrar la pestaña
+                   setTimeout(() => { document.body.innerHTML = "<h1 style='color: white; text-align: center; margin-top: 20%; font-family: sans-serif'>Sistema Apagado Completamente. Ya puedes cerrar esta ventana.</h1>"; }, 1500);
+                },
+                error: () => {
+                   this.showToast('Sistema apagado. Cierra esta ventana.', 'info');
+                   window.close();
+                   setTimeout(() => { document.body.innerHTML = "<h1 style='color: white; text-align: center; margin-top: 20%; font-family: sans-serif'>Sistema Apagado Completamente. Ya puedes cerrar esta ventana.</h1>"; }, 1500);
+                }
+            });
+        }
     }
 }

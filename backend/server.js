@@ -4,6 +4,7 @@ const sqlite3 = require('sqlite3').verbose();
 const YahooFinance = require('yahoo-finance2').default;
 const yahooFinance = new YahooFinance();
 const path = require('path');
+const { translate } = require('@vitalets/google-translate-api');
 
 const app = express();
 app.use(cors());
@@ -119,6 +120,61 @@ app.get('/api/quote/:symbol', async (req, res) => {
     } catch (e) {
         console.error(`Error obteniendo quote para ${symbol}:`, e.message);
         return res.status(500).json({ error: 'Error interno obteniendo cotización' });
+    }
+});
+
+// GET /api/radar - Devuelve radar de mercado en vivo
+app.get('/api/radar', async (req, res) => {
+    try {
+        const symbols = ['^GSPC', '^IXIC', '^DJI', 'AAPL', 'MSFT', 'NVDA', 'AMZN', 'TSLA', 'GC=F', 'CL=F', 'BTC-USD', 'EURUSD=X'];
+        const results = await yahooFinance.quote(symbols);
+        const radar = results.map(q => ({
+            symbol: q.symbol,
+            name: q.shortName || q.longName || q.symbol,
+            price: q.regularMarketPrice,
+            changePct: q.regularMarketChangePercent
+        }));
+        res.json(radar);
+    } catch (error) {
+        console.error('Error al obtener datos de radar:', error);
+        res.status(500).json({ error: 'Error al obtener radar' });
+    }
+});
+
+// GET /api/news/:category - Devuelve noticias relevantes
+app.get('/api/news/:category', async (req, res) => {
+    try {
+        const category = req.params.category;
+        let query = 'SPY';
+        if (category === 'macro') query = 'SPY';
+        if (category === 'empresas') query = 'QQQ';
+        if (category === 'cripto') query = 'BTC-USD';
+
+        const result = await yahooFinance.search(query, { newsCount: 15, quotesCount: 0 });
+        const news = await Promise.all(result.news.map(async (n) => {
+            let titleEs = n.title;
+            try {
+                const trUrl = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=es&dt=t&q=${encodeURIComponent(n.title)}`;
+                const trRes = await fetch(trUrl);
+                const trJson = await trRes.json();
+                if (trJson && trJson[0]) {
+                    titleEs = trJson[0].map(item => item[0]).join('');
+                }
+            } catch (e) {
+                console.error("Error al traducir:", e.message);
+            }
+            return {
+                title: titleEs,
+                link: n.link,
+                publisher: n.publisher || 'Yahoo Finance',
+                timestamp: n.providerPublishTime,
+                uuid: n.uuid
+            };
+        }));
+        res.json(news);
+    } catch (error) {
+        console.error('Error al obtener noticias:', error);
+        res.status(500).json({ error: 'Error al obtener noticias' });
     }
 });
 
@@ -363,6 +419,21 @@ app.get('/api/exchange-rate', async (req, res) => {
     } catch (e) {
         readCache(cachePath, res, 'Fallo al interconectar con Binance');
     }
+});
+
+// POST /api/shutdown - Cierra la aplicación matando los procesos de Node
+app.post('/api/shutdown', (req, res) => {
+    res.json({ message: 'Apagando el sistema...' });
+    const { exec } = require('child_process');
+    console.log('Cierre del sistema solicitado por el usuario.');
+    // Esperar unos ms para que la respuesta llegue al cliente
+    setTimeout(() => {
+        exec('taskkill /F /IM node.exe /T', (err, stdout, stderr) => {
+            if (err) {
+                console.error('Error al intentar cerrar node.exe:', err);
+            }
+        });
+    }, 1000);
 });
 
 const PORT = 8000;

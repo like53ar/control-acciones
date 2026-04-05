@@ -16,12 +16,28 @@ Plataforma que centraliza el control de tus inversiones en acciones y CEDEARs, c
 ## 🏗️ Tecnologías
 Arquitectura Full-Stack JavaScript/TypeScript
 
-* **Backend**: Node.js + Express + SQLite3
-* **Frontend**: Angular + Tailwind CSS
+* **Backend**: Node.js + Express + SQLite3 (Puerto 8000)
+* **Frontend**: Angular + Tailwind CSS (Puerto 4200)
 * **Datos**: Yahoo Finance API + Binance API
-* **Automatización**: Scheduler para capturas programadas
+* **Traducción Nativa**: Google Translate (Googleapis Direct Fetch)
+* **Automatización**: Scheduler para capturas programadas y auto-refresco
 
-## ✨ Sistema de Históricos (Nuevo)
+## ✨ Dashboard Ejecutivo (Novedad v1.3)
+El sistema ha evolucionado a un centro de comando financiero integral con 3 columnas dinámicas:
+
+### 📡 Radar de Mercado en Vivo (Izquierda)
+* **Semáforo Financiero**: Visualización inmediata en verde/rojo de los 3 sectores vitales de la economía: *Mercado (Índices)*, *Top Tech (Blue chips)* y *Macro & FX (Oro, Petróleo, Bitcoin)*.
+* **Métricas Dobles**: Muestra la variación porcentual (▲/▼) simultáneamente junto al precio de cotización real.
+* **Tipo de Cambio Binance**: Cruce USDT/ARS actualizado cada 20 minutos con alerta geométrica desactualizada.
+
+### 📰 Feed de Noticias Inteligente (Derecha)
+* **Traducción Nativa Automática**: Motor interno independiente interactuando con Google Translate en tiempo real, garantizando que todo el periodismo internacional se consolida en español.
+* **Categorías Rápidas**: Filtros para *Macro* (SPY), *Empresas* (QQQ) y *Cripto* (Bitcoin).
+* **Alertas de Impacto en tu Portafolio (⚡)**: Algoritmo interno que escanea los titulares de última hora; si el sistema nota que una noticia impacta directamente sobre una empresa o un ticker que posees en tu portafolio central, la marcará en rojo con un rayo alertando volatilidad inminente.
+* **Visor Extendido Zen**: Diseño limpio con top de 5 titulares y motor modal interactivo con profundidad a las últimas 15 bajadas.
+* **Refresco Silencioso**: Motor en backend que actualiza los datos del radar y del noticiero cada 5 minutos sin recargar el navegador.
+
+## ✨ Sistema de Históricos y Gráficos
 ### Captura Automática de Precios
 El sistema registra automáticamente el precio de cierre de todos tus activos activos cada día a las 17:00 EST (21:00 ARG), construyendo una base de datos temporal que permite:
 
@@ -83,9 +99,9 @@ Panel que agrupa matemáticamente múltiples compras del mismo activo en una val
 
 ### ¿Qué hace el Launcher?
 Script maestro que ejecuta toda la infraestructura en un solo clic:
-* Elimina procesos anteriores para evitar conflictos
-* Levanta el backend (puerto 3000)
-* Levanta el frontend (puerto 4200)
+* Ejecuta el limpiador de procesos de emergencia preventivamente
+* Levanta el motor Backend (Node.js en puerto 8000)
+* Levanta el motor Frontend (Angular Compiler en puerto 4200)
 * Muestra splash screen de carga
 * Abre el navegador automáticamente
 
@@ -131,7 +147,7 @@ Script maestro que ejecuta toda la infraestructura en un solo clic:
 ## 🐛 Solución de Problemas
 ### El launcher no arranca
 * Verificar que Node.js esté instalado correctamente
-* Comprobar que los puertos 3000 y 4200 estén libres
+* Comprobar que los puertos 8000 y 4200 estén libres
 * Ejecutar como administrador si hay restricciones de permisos
 
 ### Error de base de datos

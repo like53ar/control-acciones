@@ -40,6 +40,14 @@ export class PortfolioService {
         return this.http.get<PortfolioResponse>(this.apiUrl);
     }
 
+    getRadar(): Observable<any[]> {
+        return this.http.get<any[]>('http://localhost:8000/api/radar');
+    }
+
+    getNews(category: string): Observable<any[]> {
+        return this.http.get<any[]>(`http://localhost:8000/api/news/${category}`);
+    }
+
     addPortfolioItem(item: { symbol: string, quantity: number, buy_price: number }): Observable<any> {
         return this.http.post(this.apiUrl, item);
     }
@@ -75,5 +83,10 @@ export class PortfolioService {
     getExchangeRate(): Observable<any> {
         const baseUrl = this.apiUrl.replace('/portfolio', '');
         return this.http.get(`${baseUrl}/exchange-rate`);
+    }
+
+    shutdownSystem(): Observable<any> {
+        const baseUrl = this.apiUrl.replace('/portfolio', '');
+        return this.http.post(`${baseUrl}/shutdown`, {});
     }
 }
