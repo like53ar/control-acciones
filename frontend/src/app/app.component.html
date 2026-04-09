@@ -50,7 +50,7 @@
 
   <!-- Ticker Tape -->
   <div [ngClass]="{'focused-fade-exit': isFocusedMode, 'focused-fade-enter': !isFocusedMode}"
-    class="w-full max-w-7xl mx-auto mb-8 rounded-xl overflow-hidden shadow border border-zen-medium/30 bg-[#1e293b]/50 backdrop-blur-sm h-[46px] relative z-10 zen-transition">
+    class="w-full max-w-[1850px] mx-auto mb-8 rounded-xl overflow-hidden shadow border border-zen-medium/30 bg-[#1e293b]/50 backdrop-blur-sm h-[46px] relative z-10 zen-transition">
     <div class="tradingview-widget-container" #tickerContainer>
       <div class="tradingview-widget-container__widget"></div>
     </div>
@@ -58,7 +58,7 @@
 
   <!-- Header -->
   <header [ngClass]="{'focused-fade-exit': isFocusedMode, 'focused-fade-enter': !isFocusedMode}"
-    class="text-center space-y-5 mt-8 mb-16 w-full max-w-7xl mx-auto zen-transition relative flex flex-col items-center">
+    class="text-center space-y-5 mt-8 mb-16 w-full max-w-[1850px] mx-auto zen-transition relative flex flex-col items-center">
     
     <!-- Botón de Apagar Sistema -->
     <button (click)="shutdown()"
@@ -84,7 +84,7 @@
     </div>
   </header>
 
-  <div class="max-w-[1700px] w-full px-4 xl:px-8 mx-auto flex flex-col gap-16 items-center">
+  <div class="max-w-[1850px] w-full px-4 xl:px-8 mx-auto flex flex-col gap-16 items-center">
 
     <!-- Data View -->
     <ng-container *ngIf="!loading && portfolioData">
@@ -439,7 +439,7 @@
       </div>
 
       <!-- Bottom Section: Assets Table -->
-      <div class="w-full max-w-7xl flex flex-col items-start">
+        <div class="w-full max-w-full flex flex-col items-start">
 
         <!-- Main Assets Table -->
         <div class="w-full">
